@@ -28,6 +28,7 @@ export default defineConfig({
         main: path.resolve(__dirname, 'index.html'),
         htmlInterop: path.resolve(__dirname, 'html-interop.html'),
         components: path.resolve(__dirname, 'components.html'),
+        routing: path.resolve(__dirname, 'routing-demo.html'),
       },
     },
   },

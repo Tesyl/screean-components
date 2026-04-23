@@ -122,8 +122,13 @@ const createEntry = (c: Component): MirrorEntry => {
   // Base styling. `transform` gets written by reconcile(); leaving it empty
   // here means unpositioned-at-first, but reconcile() always runs for new
   // entries before the next paint.
+  //
+  // NO inline `background` — consumer CSS is the source of truth for how
+  // mirrors render visually. Inline styles beat external selectors, so
+  // forcing `background: transparent` here would have locked out any
+  // consumer-supplied accent colors.
   div.style.cssText =
-    'position:absolute;top:0;left:0;background:transparent;will-change:transform;';
+    'position:absolute;top:0;left:0;will-change:transform;';
 
   if (role !== 'none') div.setAttribute('role', role);
   if (i.label !== undefined) {
