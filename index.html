@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>screean-components · demo</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #06050d;
+        overflow: hidden;
+        color: #e0e0ea;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+
+      /* Subtle gradient peeking through when particles disperse */
+      .world-behind {
+        position: fixed;
+        inset: -20%;
+        z-index: 0;
+        background:
+          radial-gradient(circle at 30% 40%, rgba(140, 100, 255, 0.35), transparent 40%),
+          radial-gradient(circle at 70% 60%, rgba(100, 180, 255, 0.30), transparent 45%),
+          radial-gradient(circle at 50% 80%, rgba(255, 160, 200, 0.15), transparent 50%);
+        filter: blur(40px) saturate(1.2);
+        animation: drift 90s linear infinite;
+      }
+      @keyframes drift {
+        0%   { transform: rotate(0deg) scale(1); }
+        50%  { transform: rotate(180deg) scale(1.1); }
+        100% { transform: rotate(360deg) scale(1); }
+      }
+
+      #portal {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        z-index: 1;
+      }
+
+      .hint {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: rgba(220, 220, 240, 0.3);
+        pointer-events: none;
+        user-select: none;
+        z-index: 10;
+      }
+      .hint kbd {
+        font-family: inherit;
+        font-size: 9px;
+        padding: 1px 5px;
+        margin: 0 2px;
+        border-radius: 3px;
+        background: rgba(220, 220, 240, 0.08);
+        border: 1px solid rgba(220, 220, 240, 0.15);
+        color: rgba(220, 220, 240, 0.55);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="world-behind" aria-hidden="true"></div>
+    <canvas id="portal"></canvas>
+    <div class="hint">
+      hover / click buttons · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> switch shapes
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
