@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>screean · components · a11y</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #06050d;
+        overflow: hidden;
+        color: #e0e0ea;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+
+      .world-behind {
+        position: fixed;
+        inset: -20%;
+        z-index: 0;
+        background:
+          radial-gradient(circle at 30% 40%, rgba(140, 100, 255, 0.30), transparent 40%),
+          radial-gradient(circle at 70% 60%, rgba(100, 180, 255, 0.25), transparent 45%),
+          radial-gradient(circle at 50% 80%, rgba(255, 160, 200, 0.12), transparent 50%);
+        filter: blur(40px) saturate(1.2);
+        animation: drift 90s linear infinite;
+      }
+      @keyframes drift {
+        0%   { transform: rotate(0deg) scale(1); }
+        50%  { transform: rotate(180deg) scale(1.1); }
+        100% { transform: rotate(360deg) scale(1); }
+      }
+
+      #portal {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      /* DOM mirror container goes here via `host` option. We set a stacking
+         context with `position: absolute; inset: 0; z-index: 2`. Mirror divs
+         get :focus-visible rings (below) so keyboard focus is clearly shown. */
+      #mirror-host {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        pointer-events: none;
+      }
+
+      /* Make the mirror divs visually "real" so the demo reads as UI and not
+         just a point cloud. The particle field remains the primary aesthetic;
+         the DOM chrome here is quiet — a subtle dark background, hairline
+         border, readable text — that renders the *same* content the particles
+         are gathering around. Mirror + particles co-exist: you see a button.
+
+         Button-role mirrors get a pill, a border, and centered text drawn
+         from aria-label. The particle cloud overlays on top via the canvas
+         sitting above (z-index:1 vs mirror z-index:2? no — mirror is on top
+         so its background is visible THROUGH the cloud since cloud colors
+         are translucent and shape rectangles are chrome-outlined). */
+
+      #screean-mirror > div[role="button"] {
+        background: rgba(16, 14, 28, 0.72);
+        border: 1px solid rgba(180, 180, 220, 0.14);
+        border-radius: 10px;
+        backdrop-filter: blur(8px) saturate(1.1);
+        color: rgba(230, 232, 240, 0.92);
+        font: 500 14px system-ui, -apple-system, 'Segoe UI', sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset,
+                    0 4px 16px rgba(0,0,0,0.3);
+        /* opacity transitions handle the dissolve reform-fade. The click
+           handler in main.ts writes opacity=0 to dissolve and opacity=1 to
+           reform; CSS animates the values. */
+        transition: opacity 220ms ease, background 120ms ease, border-color 120ms ease;
+      }
+      #screean-mirror > div[role="button"]:hover {
+        background: rgba(30, 28, 50, 0.82);
+        border-color: rgba(180, 180, 220, 0.25);
+      }
+      #screean-mirror > div[role="button"][aria-disabled="true"] {
+        background: rgba(16, 14, 28, 0.45);
+        border-color: rgba(180, 180, 220, 0.06);
+        color: rgba(230, 232, 240, 0.35);
+      }
+      /* The heading sits proudly as a standalone block — no chrome but a
+         clear text treatment that matches the canvas text the particles are
+         forming. */
+      #screean-mirror > div[role="heading"] {
+        color: rgba(240, 240, 248, 0.92);
+        font: 300 38px system-ui, -apple-system, 'Segoe UI', sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: -0.01em;
+      }
+      #screean-mirror > div[role="text"] {
+        color: rgba(200, 205, 220, 0.70);
+        font: 400 14px system-ui, -apple-system, 'Segoe UI', sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Focus ring — on keyboard focus only. Cleaner, offset outward. */
+      #screean-mirror > div:focus-visible {
+        outline: 2px solid rgb(130, 160, 255);
+        outline-offset: 3px;
+      }
+      #screean-mirror > div:focus:not(:focus-visible) {
+        outline: none;
+      }
+
+      .hud {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 50;
+        padding: 10px 14px;
+        background: rgba(12, 10, 24, 0.6);
+        backdrop-filter: blur(18px) saturate(1.2);
+        border: 1px solid rgba(180, 180, 230, 0.1);
+        border-radius: 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        color: rgba(220, 220, 240, 0.85);
+        letter-spacing: 0.02em;
+        pointer-events: none;
+        user-select: none;
+        min-width: 260px;
+      }
+      .hud h4 {
+        margin: 0 0 6px 0;
+        font-size: 9px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(180, 180, 220, 0.55);
+        font-weight: 500;
+      }
+      .hud .row { display: flex; gap: 8px; margin-top: 3px; }
+      .hud .key { color: rgba(160, 200, 255, 0.65); min-width: 60px; }
+      .hud .val { color: rgba(220, 220, 240, 0.95); }
+      .hud .val.muted { color: rgba(160, 160, 180, 0.6); font-style: italic; }
+
+      .hint {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: rgba(220, 220, 240, 0.35);
+        pointer-events: none;
+        user-select: none;
+        z-index: 10;
+      }
+      .hint kbd {
+        font-family: inherit;
+        font-size: 9px;
+        padding: 1px 5px;
+        margin: 0 2px;
+        border-radius: 3px;
+        background: rgba(220, 220, 240, 0.08);
+        border: 1px solid rgba(220, 220, 240, 0.15);
+        color: rgba(220, 220, 240, 0.55);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="world-behind" aria-hidden="true"></div>
+    <canvas id="portal"></canvas>
+    <div id="mirror-host"></div>
+    <div class="hud" id="hud" aria-live="polite">
+      <h4>accessibility inspector</h4>
+      <div class="row"><span class="key">focused:</span> <span class="val muted" id="hud-focused">—</span></div>
+      <div class="row"><span class="key">role:</span> <span class="val muted" id="hud-role">—</span></div>
+      <div class="row"><span class="key">aria-label:</span> <span class="val muted" id="hud-label">—</span></div>
+      <div class="row"><span class="key">disabled:</span> <span class="val muted" id="hud-disabled">—</span></div>
+    </div>
+    <div class="hint">
+      <kbd>Tab</kbd> to navigate · <kbd>Enter</kbd> / <kbd>Space</kbd> to activate
+    </div>
+    <script type="module" src="/src/components-demo/main.ts"></script>
+  </body>
+</html>

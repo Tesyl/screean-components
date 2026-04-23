@@ -43,3 +43,15 @@ export {
   routeKeyboardEvent,
   type RoutableKeyboardEvent,
 } from './routeKeyboardEvent';
+
+export {
+  createDomMirror,
+  type DomMirror,
+  type DomMirrorOpts,
+} from './domMirror';
+
+export {
+  createDissolve,
+  type Dissolve,
+  type DissolveOpts,
+} from './dissolveAndReform';
