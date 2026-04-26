@@ -9,37 +9,25 @@
 
 import { node, rect, stack, text, type SceneNode } from 'screean';
 import { component } from './component';
-import type { Component, Handler } from './types';
+import type {
+  Component,
+  Handler,
+  InteractiveOpts,
+  SizedOpts,
+} from './types';
 
-export type ButtonOpts = {
-  // Visible button text. Also the default accessible label.
+// Button opts = handlers + a11y + state (from InteractiveOpts)
+//             + visual chrome (from SizedOpts)
+//             + `label` (REQUIRED visible text; also defaults `ariaLabel`)
+//             + `onClick` (REQUIRED — intersection narrows the optional
+//               `onClick?: Handler` from ComponentHandlers to required).
+//
+// Everything else (onPointerEnter, disabled, pressed, ariaRole, etc.) is
+// inherited as-is. Adding a new handler to ComponentHandlers automatically
+// surfaces on ButtonOpts without a code change here.
+export type ButtonOpts = InteractiveOpts & SizedOpts & {
   label: string;
-  // Handler fired on click. Receives a ComponentEvent with world-space coords.
   onClick: Handler;
-  // Optional hover + press handlers. Opt-in for buttons that want visual
-  // feedback beyond the default. Consumer receives the same ComponentEvent
-  // shape as onClick.
-  onPointerEnter?: Handler;
-  onPointerLeave?: Handler;
-  onPointerDown?: Handler;
-  onPointerUp?: Handler;
-  // Chrome dimensions. Kept as opts rather than computed from text bounds so
-  // the caller has explicit control over hit area — critical for touch UIs
-  // where chrome often extends past the visible text.
-  width?: number;
-  height?: number;
-  // Corner radius of the rounded rectangle. 0 = sharp corners.
-  radius?: number;
-  // Font spec for the label. Defaults to a neutral system-font weight.
-  font?: string;
-  // If the visible `label` is decorative / empty (icon-only), pass explicit
-  // ariaLabel. Otherwise `label` doubles as the accessible label.
-  ariaLabel?: string;
-  id?: string;
-  // Per-button z in the scene graph. Internal stacking of chrome (z=0) and
-  // text (z=1) is handled internally and is NOT affected by this value.
-  z?: number;
-  disabled?: boolean;
 };
 
 export const button = (opts: ButtonOpts): Component => {
@@ -66,6 +54,12 @@ export const button = (opts: ButtonOpts): Component => {
     // ariaLabel explicitly; we don't try to be clever about detecting them.
     ariaLabel: opts.ariaLabel ?? opts.label,
     disabled: opts.disabled,
+    pressed: opts.pressed,
+    checked: opts.checked,
+    // Same font used for the particle text goes onto the component — the
+    // DOM mirror reads this to inline the same `font` on the mirror div,
+    // so DOM text and particle text stay in lockstep on size/weight.
+    font,
     onClick: opts.onClick,
     onPointerEnter: opts.onPointerEnter,
     onPointerLeave: opts.onPointerLeave,

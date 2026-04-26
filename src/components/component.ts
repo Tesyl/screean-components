@@ -45,8 +45,6 @@ export const component = (
   }
   const id = opts.id ?? `c${_nextComponentId++}`;
   const role: AriaRole = opts.ariaRole ?? 'none';
-  const label = opts.ariaLabel;
-  const disabled = opts.disabled ?? false;
   const handlers: ComponentInternals['handlers'] = Object.freeze({
     onClick: opts.onClick,
     onPointerEnter: opts.onPointerEnter,
@@ -57,8 +55,15 @@ export const component = (
   const internals: ComponentInternals = Object.freeze({
     id,
     role,
-    label,
-    disabled,
+    ariaLabel: opts.ariaLabel,
+    disabled: opts.disabled ?? false,
+    // `pressed` and `checked` are explicitly `undefined` when not provided —
+    // domMirror reads these to decide whether to emit `aria-pressed` /
+    // `aria-checked` attrs. A default of `false` would wrongly label every
+    // component as a toggle/checkbox to screen readers.
+    pressed: opts.pressed,
+    checked: opts.checked,
+    font: opts.font,
     handlers,
   });
   (node as Component)._component = internals;

@@ -65,13 +65,14 @@
          so its background is visible THROUGH the cloud since cloud colors
          are translucent and shape rectangles are chrome-outlined). */
 
+      /* Visual chrome only — font flows in from the component (inline style)
+         so particles + DOM mirror render at one size. */
       #screean-mirror > div[role="button"] {
         background: rgba(16, 14, 28, 0.72);
         border: 1px solid rgba(180, 180, 220, 0.14);
         border-radius: 10px;
         backdrop-filter: blur(8px) saturate(1.1);
         color: rgba(230, 232, 240, 0.92);
-        font: 500 14px system-ui, -apple-system, 'Segoe UI', sans-serif;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -96,7 +97,6 @@
          forming. */
       #screean-mirror > div[role="heading"] {
         color: rgba(240, 240, 248, 0.92);
-        font: 300 38px system-ui, -apple-system, 'Segoe UI', sans-serif;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -104,7 +104,6 @@
       }
       #screean-mirror > div[role="text"] {
         color: rgba(200, 205, 220, 0.70);
-        font: 400 14px system-ui, -apple-system, 'Segoe UI', sans-serif;
         display: flex;
         align-items: center;
         justify-content: center;

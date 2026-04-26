@@ -36,6 +36,7 @@
 //   end → call onHide, cycle removed from active map
 
 import type { Scene, Particle } from 'screean';
+import { radialImpulse } from 'screean';
 import type { Component } from './types';
 
 export type DissolveOpts = {
@@ -150,20 +151,15 @@ export const createDissolve = (opts: DissolveOpts): Dissolve => {
 
     // Radial burst from the mirror's screen-space center. Using the mirror
     // rect means the burst origin is whatever the user actually sees, not
-    // whatever the scene thinks the field bounds are.
+    // whatever the scene thinks the field bounds are. `radialImpulse` is
+    // the engine primitive that owns this math.
     const rect = div.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    for (const i of indices) {
-      const p = particles[i];
-      if (!p || p.life <= 0) continue;
-      const dx = p.x - cx;
-      const dy = p.y - cy;
-      const d = Math.hypot(dx, dy) || 1;
-      const mag = burstKick / Math.max(1, d * burstSoftness);
-      p.vx += (dx / d) * mag;
-      p.vy += (dy / d) * mag;
-    }
+    radialImpulse(particles, {
+      origin: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
+      kick: burstKick,
+      softness: burstSoftness,
+      indices,
+    });
 
     // Register (overwrites any in-flight cycle on this component — the
     // re-entrancy strategy is "reset phase, re-kick" rather than "stack").

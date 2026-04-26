@@ -41,22 +41,28 @@ describe('component() factory', () => {
     expect(Object.isFrozen(c._component.handlers)).toBe(true);
   });
 
-  it('defaults ariaRole=none, label=undefined, disabled=false', () => {
+  it('defaults ariaRole=none, ariaLabel=undefined, disabled=false, no pressed/checked', () => {
     const c = component(node(rect({ w: 10, h: 10, radius: 0 })));
     expect(c._component.role).toBe('none');
-    expect(c._component.label).toBeUndefined();
+    expect(c._component.ariaLabel).toBeUndefined();
     expect(c._component.disabled).toBe(false);
+    expect(c._component.pressed).toBeUndefined();
+    expect(c._component.checked).toBeUndefined();
   });
 
-  it('propagates ariaRole / ariaLabel / disabled opts', () => {
+  it('propagates ariaRole / ariaLabel / disabled / pressed / checked opts', () => {
     const c = component(node(rect({ w: 10, h: 10, radius: 0 })), {
       ariaRole: 'button',
       ariaLabel: 'Save',
       disabled: true,
+      pressed: true,
+      checked: 'mixed',
     });
     expect(c._component.role).toBe('button');
-    expect(c._component.label).toBe('Save');
+    expect(c._component.ariaLabel).toBe('Save');
     expect(c._component.disabled).toBe(true);
+    expect(c._component.pressed).toBe(true);
+    expect(c._component.checked).toBe('mixed');
   });
 
   it('throws when tagging an already-tagged node (no silent overwrite)', () => {

@@ -38,6 +38,7 @@ import {
   shimmer,
   spawn,
   spring,
+  radialImpulse,
   TRANSPARENT,
   packRGBA,
   type Color,
@@ -45,7 +46,7 @@ import {
 } from 'screean';
 
 import { App } from './App';
-import { applyJellyImpulse, parseCssColorToRgba } from './physics';
+import { parseCssColorToRgba } from './physics';
 
 const log = (...args: unknown[]) => console.info('[html-interop]', ...args);
 
@@ -195,7 +196,7 @@ const dissolve = async () => {
     p.weight = 1;
   }
 
-  applyJellyImpulse(world.particles, { cx, cy, kick: 420 });
+  radialImpulse(world.particles, { origin: { x: cx, y: cy }, kick: 420 });
 
   setButtonVisuals(0, false);
   state = { kind: 'dissolving', since: performance.now(), field };

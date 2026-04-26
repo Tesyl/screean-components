@@ -75,7 +75,7 @@ describe('createDomMirror — mount', () => {
   });
 
   it('non-interactive components (label) get role but no tabindex and pointer-events: none', () => {
-    const l = label({ text: 'Greeting' });
+    const l = label({ label: 'Greeting' });
     const root = node(null);
     root.children.push(l);
     l.parent = root;

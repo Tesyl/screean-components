@@ -153,7 +153,7 @@ const popButton = (btn: Component): void => {
 // Note: button onClick uses the registry pattern so closures work even though
 // ui / tracker are defined below (TDZ-safe indirection).
 const content = column({ gap: 36, align: 'center', padding: 32 }, [
-  label({ text: 'screean · components', font: titleFont }),
+  label({ label: 'screean · components', font: titleFont }),
   shapeLeaf,
   row({ gap: 14, align: 'center' }, [
     button({

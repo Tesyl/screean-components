@@ -53,13 +53,14 @@
       :root[data-route="gallery"]  { --accent: rgba(80, 200, 220, 0.45);  --accent-bg: rgba(10, 36, 48, 0.72); }
       :root[data-route="settings"] { --accent: rgba(255, 180, 80, 0.45);  --accent-bg: rgba(40, 28, 10, 0.72); }
 
+      /* Visual chrome only — font flows in from the component (inline style)
+         so particles + DOM mirror render at one size. */
       #screean-mirror > div[role="button"] {
         background: var(--accent-bg);
         border: 1px solid var(--accent);
         border-radius: 10px;
         backdrop-filter: blur(8px) saturate(1.1);
         color: rgba(230, 232, 240, 0.92);
-        font: 500 14px system-ui, -apple-system, 'Segoe UI', sans-serif;
         display: flex; align-items: center; justify-content: center;
         box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset,
                     0 4px 16px rgba(0,0,0,0.3);
@@ -78,13 +79,11 @@
       }
       #screean-mirror > div[role="heading"] {
         color: rgba(240, 240, 248, 0.92);
-        font: 300 42px system-ui, -apple-system, 'Segoe UI', sans-serif;
         display: flex; align-items: center; justify-content: center;
         letter-spacing: -0.01em;
       }
       #screean-mirror > div[role="text"] {
         color: rgba(200, 205, 220, 0.65);
-        font: 400 14px system-ui, -apple-system, 'Segoe UI', sans-serif;
         display: flex; align-items: center; justify-content: center;
       }
 

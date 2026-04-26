@@ -18,8 +18,9 @@
 
 import {
   World, camera, column, createRenderer, drag, neighborRepel,
-  packRGBA, pointForce, pointerSensor, row, scene, shimmer, spawn,
-  spring, TRANSPARENT, unpackR, unpackG, unpackB, type Color, type SceneNode,
+  packRGBA, pointForce, pointerSensor, radialImpulse, row, scene,
+  shimmer, spawn, spring, TRANSPARENT, unpackR, unpackG, unpackB,
+  type Color, type SceneNode,
 } from 'screean';
 import {
   button, createDomMirror, label, popTo3D, type Component,
@@ -122,6 +123,7 @@ const hideAll = (): void => {
 // visit gives us clean id lifecycle.
 
 const R = Math.min(W, H);
+const titleFont = `300 ${Math.round(R * 0.05)}px system-ui`;
 const bodyFont = `500 ${Math.round(R * 0.018)}px system-ui`;
 const descFont = `400 ${Math.round(R * 0.016)}px system-ui`;
 
@@ -130,8 +132,8 @@ const mkButton = (lbl: string, onClick: (e: { component: Component }) => void): 
 
 const pages: Record<Route, () => SceneNode> = {
   home: () => column({ gap: 28, align: 'center', padding: 32 }, [
-    label({ text: 'screean', ariaRole: 'heading' }),
-    label({ text: 'physics-on-ui · routing · the particles are the transition', font: descFont }),
+    label({ label: 'screean', ariaRole: 'heading', font: titleFont }),
+    label({ label: 'physics-on-ui · routing · the particles are the transition', font: descFont }),
     row({ gap: 14, align: 'center' }, [
       mkButton('Gallery →', (e) => navigate('gallery', e.component)),
       mkButton('Settings →', (e) => navigate('settings', e.component)),
@@ -139,8 +141,8 @@ const pages: Record<Route, () => SceneNode> = {
   ]),
 
   gallery: () => column({ gap: 28, align: 'center', padding: 32 }, [
-    label({ text: 'Gallery', ariaRole: 'heading' }),
-    label({ text: 'imagine thumbnails here · each click re-routes', font: descFont }),
+    label({ label: 'Gallery', ariaRole: 'heading', font: titleFont }),
+    label({ label: 'imagine thumbnails here · each click re-routes', font: descFont }),
     row({ gap: 14, align: 'center' }, [
       mkButton('Item A', () => {}),
       mkButton('Item B', () => {}),
@@ -153,8 +155,8 @@ const pages: Record<Route, () => SceneNode> = {
   ]),
 
   settings: () => column({ gap: 28, align: 'center', padding: 32 }, [
-    label({ text: 'Settings', ariaRole: 'heading' }),
-    label({ text: 'also hypothetical · Tab navigates, Enter activates', font: descFont }),
+    label({ label: 'Settings', ariaRole: 'heading', font: titleFont }),
+    label({ label: 'also hypothetical · Tab navigates, Enter activates', font: descFont }),
     row({ gap: 14, align: 'center' }, [
       mkButton('Toggle A', () => {}),
       mkButton('Toggle B', () => {}),
@@ -296,21 +298,15 @@ const getMirrorDivFor = (c: Component): HTMLDivElement | null =>
     `[data-component-id="${c._component.id}"]`,
   );
 
-// Apply a radial impulse to every live particle, centered on (cx, cy).
-// Same falloff as createDissolve — particles near the center get a hard
-// kick outward, distant ones get a nudge. The combined effect is the
-// entire page "exploding" from the click point.
-const burstFrom = (cx: number, cy: number): void => {
-  for (const p of world.particles) {
-    if (p.life <= 0) continue;
-    const dx = p.x - cx;
-    const dy = p.y - cy;
-    const d = Math.hypot(dx, dy) || 1;
-    const mag = BURST_KICK / Math.max(1, d * BURST_SOFTNESS);
-    p.vx += (dx / d) * mag;
-    p.vy += (dy / d) * mag;
-  }
-};
+// Radial impulse on every live particle centered on (cx, cy). Wraps the
+// engine's `radialImpulse` primitive with this demo's tuned defaults so the
+// call site below stays one line.
+const burstFrom = (cx: number, cy: number): void =>
+  radialImpulse(world.particles, {
+    origin: { x: cx, y: cy },
+    kick: BURST_KICK,
+    softness: BURST_SOFTNESS,
+  });
 
 const navigate = (to: Route, from?: Component): void => {
   if (to === currentRoute) return;

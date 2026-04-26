@@ -95,6 +95,9 @@ type MirrorEntry = {
   lastW: number;
   lastH: number;
   lastDisabled: boolean;
+  lastPressed: boolean | undefined;
+  lastChecked: boolean | 'mixed' | undefined;
+  lastFont: string | undefined;
   // Listener handles so dispose() can detach them. Closure captures the
   // component by reference; handler-lookup is deferred to event time so
   // swapping handler identities Just Works (though our components freeze
@@ -131,14 +134,14 @@ const createEntry = (c: Component): MirrorEntry => {
     'position:absolute;top:0;left:0;will-change:transform;';
 
   if (role !== 'none') div.setAttribute('role', role);
-  if (i.label !== undefined) {
-    div.setAttribute('aria-label', i.label);
+  if (i.ariaLabel !== undefined) {
+    div.setAttribute('aria-label', i.ariaLabel);
     // Also render as visible text content so the DOM mirror is readable,
     // not just a phantom rect over a particle cloud. Consumers who want
     // particles-only (e.g. a demo that hides the DOM chrome entirely) can
     // style `color: transparent` on `#screean-mirror > div`. The aria-label
     // is still authoritative for screen readers per WAI-ARIA naming rules.
-    div.textContent = i.label;
+    div.textContent = i.ariaLabel;
   }
 
   if (interactive) {
@@ -148,6 +151,29 @@ const createEntry = (c: Component): MirrorEntry => {
     div.style.pointerEvents = 'none';
   }
   if (i.disabled) div.setAttribute('aria-disabled', 'true');
+  // Toggle-button / checkbox / radio state. Only emit the ARIA attribute
+  // when the component actually uses that state axis — undefined means
+  // "not a toggle," so we leave the attr off entirely.
+  if (i.pressed !== undefined) {
+    div.setAttribute('aria-pressed', String(i.pressed));
+  }
+  if (i.checked !== undefined) {
+    div.setAttribute('aria-checked', String(i.checked));
+  }
+  // Inline the CSS font shorthand so DOM text matches the particle text.
+  // screean's `text()` field defaults to `bold 96px system-ui`; any consumer
+  // CSS that disagrees produces a jarring size jump when particles reform.
+  // Inline style beats external selectors → single source of truth wins.
+  //
+  // `line-height: 1` matters: screean rasterizes glyphs without line-leading,
+  // so the field's bounds equal the glyph cell. The DOM default line-height
+  // (~1.2) inflates the line-box and flex-centers the glyph below the
+  // rasterized rectangle's center — visible as particles landing slightly
+  // above the final text. Collapsing to 1 aligns the two.
+  if (i.font !== undefined) {
+    div.style.font = i.font;
+    div.style.lineHeight = '1';
+  }
 
   let onClick: MirrorEntry['onClick'] = null;
   let onKey: MirrorEntry['onKey'] = null;
@@ -198,6 +224,9 @@ const createEntry = (c: Component): MirrorEntry => {
     lastW: NaN,
     lastH: NaN,
     lastDisabled: i.disabled,
+    lastPressed: i.pressed,
+    lastChecked: i.checked,
+    lastFont: i.font,
     onClick,
     onKey,
   };
@@ -222,6 +251,21 @@ const syncAriaIfChanged = (entry: MirrorEntry, c: Component): void => {
         entry.div.style.pointerEvents = 'auto';
       }
     }
+  }
+  if (entry.lastPressed !== i.pressed) {
+    entry.lastPressed = i.pressed;
+    if (i.pressed === undefined) entry.div.removeAttribute('aria-pressed');
+    else entry.div.setAttribute('aria-pressed', String(i.pressed));
+  }
+  if (entry.lastChecked !== i.checked) {
+    entry.lastChecked = i.checked;
+    if (i.checked === undefined) entry.div.removeAttribute('aria-checked');
+    else entry.div.setAttribute('aria-checked', String(i.checked));
+  }
+  if (entry.lastFont !== i.font) {
+    entry.lastFont = i.font;
+    entry.div.style.font = i.font ?? '';
+    entry.div.style.lineHeight = i.font !== undefined ? '1' : '';
   }
 };
 

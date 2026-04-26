@@ -18,23 +18,23 @@ beforeEach(() => {
 
 describe('label()', () => {
   it('produces a Component tagged with role=text by default', () => {
-    const l = label({ text: 'Hello' });
+    const l = label({ label: 'Hello' });
     expect(isComponent(l)).toBe(true);
     expect(l._component.role).toBe('text');
   });
 
   it('accepts ariaRole=heading for h1-equivalents', () => {
-    const l = label({ text: 'Big', ariaRole: 'heading' });
+    const l = label({ label: 'Big', ariaRole: 'heading' });
     expect(l._component.role).toBe('heading');
   });
 
   it('uses the visible text as the ariaLabel — guaranteed by construction', () => {
-    const l = label({ text: 'Welcome back' });
-    expect(l._component.label).toBe('Welcome back');
+    const l = label({ label: 'Welcome back' });
+    expect(l._component.ariaLabel).toBe('Welcome back');
   });
 
   it('has no onClick handler (non-interactive)', () => {
-    const l = label({ text: 'X' });
+    const l = label({ label: 'X' });
     expect(l._component.handlers.onClick).toBeUndefined();
   });
 });
@@ -65,7 +65,7 @@ describe('button()', () => {
 
   it('defaults ariaLabel from the visible label', () => {
     const b = button({ label: 'Save', onClick: () => {} });
-    expect(b._component.label).toBe('Save');
+    expect(b._component.ariaLabel).toBe('Save');
   });
 
   it('explicit ariaLabel wins when provided', () => {
@@ -74,7 +74,7 @@ describe('button()', () => {
       onClick: () => {},
       ariaLabel: 'Next page',
     });
-    expect(b._component.label).toBe('Next page');
+    expect(b._component.ariaLabel).toBe('Next page');
   });
 
   it('stores the onClick handler on the component', () => {
@@ -101,5 +101,15 @@ describe('button()', () => {
   it('disabled flag flows through', () => {
     const b = button({ label: 'Z', onClick: () => {}, disabled: true });
     expect(b._component.disabled).toBe(true);
+  });
+
+  it('pressed flag flows through (for toggle-buttons)', () => {
+    const b = button({ label: 'Mute', onClick: () => {}, pressed: true });
+    expect(b._component.pressed).toBe(true);
+  });
+
+  it('checked flag flows through (for button-as-checkbox)', () => {
+    const b = button({ label: 'Agree', onClick: () => {}, checked: 'mixed' });
+    expect(b._component.checked).toBe('mixed');
   });
 });

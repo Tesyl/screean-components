@@ -2,48 +2,11 @@
 //
 // Kept out of main.tsx so they can run under vitest without a DOM / React
 // / screean renderer context. The demo imports from here; so do the tests.
-
-import type { Particle } from 'screean';
-
-// Minimal subset of Particle we actually touch. Keeps the unit tests free
-// of all the ambient fields (fieldId, age, life, color) that are irrelevant
-// to the math.
-export type JellyParticle = Pick<Particle, 'x' | 'y' | 'vx' | 'vy' | 'life'>;
-
-export type JellyOpts = {
-  // Click / button center in world coords.
-  cx: number;
-  cy: number;
-  // Kick magnitude at the center. Falls off with distance.
-  kick: number;
-  // Softening factor on the 1/d falloff — prevents particles AT the center
-  // from getting infinite velocity. Defaults to 0.1 world-units per distance.
-  // Tuned so a radius of ~10 gets a full KICK, radius 100 gets KICK/10.
-  softness?: number;
-};
-
-// Apply a radial impulsive velocity kick outward from (cx, cy).
-// Mutates each particle's vx/vy in place. Particles with life <= 0 are
-// skipped (dead / pending re-spawn).
 //
-// The 1/d falloff (softened by `softness`) is load-bearing for the feel:
-// without it, far particles get almost-zero kick and the effect feels local;
-// with pure 1/d, center particles explode. The softening term gives every
-// particle *something* while keeping the center bounded.
-export const applyJellyImpulse = <P extends JellyParticle>(
-  particles: readonly P[],
-  { cx, cy, kick, softness = 0.1 }: JellyOpts,
-): void => {
-  for (const p of particles) {
-    if (p.life <= 0) continue;
-    const dx = p.x - cx;
-    const dy = p.y - cy;
-    const d = Math.hypot(dx, dy) || 1;
-    const mag = kick / Math.max(1, d * softness);
-    p.vx += (dx / d) * mag;
-    p.vy += (dy / d) * mag;
-  }
-};
+// Note: the radial-impulse function that used to live here as
+// `applyJellyImpulse` is now `radialImpulse` in the `screean` engine.
+// Callers import it directly from 'screean'. Same math, better home — see
+// `screean/src/choreography/radialImpulse.ts`.
 
 // Parse an arbitrary CSS color string into [r, g, b, a] (0-255) by bouncing
 // off a throwaway 1×1 canvas. This is the simplest cross-browser way to

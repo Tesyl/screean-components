@@ -1,12 +1,25 @@
 // Component types.
 //
 // A component is a SceneNode with a `_component` internals tag that carries
-// event handlers and ARIA metadata. Composing a component does not add a new
-// tree hop — the tag lives on the container SceneNode that already wraps the
-// compositional subtree (e.g. the `stack` that holds a button's rect + label).
+// event handlers, ARIA metadata, and UI state flags (disabled / pressed /
+// checked). Composing a component does not add a new tree hop — the tag
+// lives on the container SceneNode that already wraps the compositional
+// subtree (e.g. the `stack` that holds a button's rect + label).
 //
 // Event coordinates are world-space by default (matches screean's scene-graph
 // hit-test convention); `screen` and `local` are available as escape hatches.
+//
+// State philosophy (consumer-controlled):
+//   - `disabled`, `pressed`, `checked` are STATIC values captured when the
+//     component is built. The factory doesn't own state — the consumer does.
+//   - To flip a toggle, the consumer rebuilds the component with `pressed:
+//     newValue` and swaps it into the scene, OR mutates `_component` via the
+//     component-model escape hatch (not recommended — breaks determinism).
+//   - This mirrors the "React controlled input" pattern: state lives in the
+//     consumer, the component is a pure projection.
+//   - Every new factory (toggle, slider, checkbox, radio) follows this shape:
+//     takes the current value + an `onChange`-style handler, renders that
+//     value, and trusts the caller to re-build on change.
 
 import type { SceneNode, Vec2 } from 'screean';
 
@@ -61,29 +74,95 @@ export type ComponentHandlers = {
   onPointerUp?: Handler;
 };
 
-// Consumer-facing opts for the low-level component() factory. Factories like
-// button() / label() wrap this with their own opts that default ariaLabel
-// from visible text.
-export type ComponentOpts = {
+// ─── opt-shape hierarchy ────────────────────────────────────────────────────
+// Every factory composes from these. Four categories:
+//
+//   BaseComponentOpts  — identity + a11y. Used by decorative components
+//                        (label, image, heading) that have no behavior.
+//   InteractiveOpts    — identity + a11y + handlers + state flags. Used by
+//                        active controls (button, toggle, slider, checkbox).
+//   SizedOpts          — visual chrome dimensions. Mixed in with the above
+//                        for components that render their own rect chrome.
+//   ComponentOpts      — the low-level component() factory's opts: everything
+//                        in InteractiveOpts.
+//
+// Preferred composition pattern:
+//     export type ButtonOpts = InteractiveOpts & SizedOpts & {
+//       label: string;                // REQUIRED visible text
+//       onClick: Handler;             // overrides the optional handler from
+//                                     //   ComponentHandlers to require it
+//     };
+// TypeScript's intersection narrows optional → required cleanly.
+
+// Identity + accessibility. Minimum for anything that shows up in the a11y tree.
+export type BaseComponentOpts = {
   // Stable id. Auto-generated if omitted. Surfaces in ARIA and debug logs.
+  // Consumers building stateful UIs should pass explicit ids so rebuilding a
+  // component (e.g. toggling `pressed`) preserves identity in the a11y tree.
   id?: string;
   ariaRole?: AriaRole;
-  // If omitted, the component's accessible label is absent. Generic
-  // component() stays permissive (no required ariaLabel); button/toggle/slider
-  // enforce via their own opts.
   ariaLabel?: string;
+};
+
+// Interactive controls — adds handlers + state flags on top of the base.
+// Disabled / pressed / checked are the primary ARIA state bindings:
+//   - `disabled` → `aria-disabled="true"` + `tabindex="-1"` + pointer-events: none
+//   - `pressed`  → `aria-pressed="true|false"` for toggle-button semantics
+//   - `checked`  → `aria-checked="true|false|mixed"` for checkbox/radio
+//
+// State flags are captured at construction time. The consumer owns the
+// actual source of truth and rebuilds the component when state changes.
+export type InteractiveOpts = BaseComponentOpts & ComponentHandlers & {
   disabled?: boolean;
-} & ComponentHandlers;
+  pressed?: boolean;
+  checked?: boolean | 'mixed';
+};
+
+// Visual chrome sizing. Kept separate so decorative components (label, image)
+// don't inherit dimensional props that don't apply to them.
+export type SizedOpts = {
+  width?: number;
+  height?: number;
+  radius?: number;
+  font?: string;
+  // Per-component z in the scene graph. Useful when a component needs to
+  // draw above or below its siblings independent of traversal order.
+  z?: number;
+};
+
+// The low-level component() factory's opts. Interactive + font, because
+// font is the one visual property that BOTH the particle rendering and
+// the DOM mirror need to agree on — storing it on the component gives the
+// mirror the authoritative value to inline so particles and DOM text
+// always render at the same size.
+export type ComponentOpts = InteractiveOpts & {
+  // CSS font shorthand (e.g. '500 16px system-ui'). When set, `domMirror`
+  // inlines this on the mirror div so DOM text matches the particle text
+  // exactly. When undefined, the mirror falls back to consumer CSS.
+  font?: string;
+};
 
 // A component IS a SceneNode. The internals live under `_component`; regular
 // tree walking / hit-testing / layout treat it exactly like any other node.
 // This is what lets `scene.bindAll(world.particles)` and `scene.hitTest(x, y)`
 // keep working without knowing components exist.
+//
+// Fields mirror InteractiveOpts 1:1, but with defaults resolved: `disabled`
+// is always boolean (defaults to false); `ariaLabel` is string | undefined
+// (preserves the opt-in nature rather than collapsing to ''); `pressed` and
+// `checked` are undefined when not applicable, so domMirror can skip writing
+// their aria-* attributes when the component doesn't use them.
 export type ComponentInternals = {
   id: string;
   role: AriaRole;
-  label: string | undefined;
+  ariaLabel: string | undefined;
   disabled: boolean;
+  pressed: boolean | undefined;
+  checked: boolean | 'mixed' | undefined;
+  // CSS font shorthand — captured so the DOM mirror inlines it and the
+  // rendered DOM text matches the particle-rendered text size/family.
+  // Undefined when the consumer didn't set one (mirror falls back to CSS).
+  font: string | undefined;
   handlers: Readonly<ComponentHandlers>;
 };
 

@@ -100,13 +100,13 @@ const descFont = `400 ${Math.round(R * 0.016)}px system-ui`;
 
 // Heading + description as role-tagged labels so the a11y tree carries them.
 const heading = label({
-  text: 'Accessible components',
+  label: 'Accessible components',
   font: titleFont,
   ariaRole: 'heading',
 });
 
 const description = label({
-  text: 'Tab through to focus · Enter or Space to activate',
+  label: 'Tab through to focus · Enter or Space to activate',
   font: descFont,
 });
 
