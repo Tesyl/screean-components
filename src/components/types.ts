@@ -31,6 +31,8 @@ export type AriaRole =
   | 'img'
   | 'link'
   | 'none'
+  | 'slider'
+  | 'switch'
   | 'text';
 
 // World-space coords are the primary; screen/local exposed for consumers that
