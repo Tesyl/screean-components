@@ -26,8 +26,8 @@ import { choreographyGroup } from '../stories/choreography';
 import { componentsGroup } from '../stories/components';
 import { typeGroup } from '../stories/type';
 import { TILE_W, TILE_H, type TileGroup, type TileSetup } from '../stories/types';
-import { mountScreeanNav, type ScreeanNavHandle } from '../lib/screeanNav';
-import { mountScreeanWipe, type ScreeanWipeHandle } from '../lib/screeanWipe';
+import { mountScreeanNav, type ScreeanNavHandle } from '../lib/transitions/screeanNav';
+import { mountScreeanWipe, type ScreeanWipeHandle } from '../lib/transitions/screeanWipe';
 
 // Slug derivation. Mono-cased, hyphens for spaces — keeps URL-safe and
 // matches what `window.location.hash` returns (minus the leading #).

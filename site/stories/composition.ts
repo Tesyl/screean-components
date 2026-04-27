@@ -11,7 +11,7 @@ import { unionField, intersectField, subtractField } from 'screean';
 import { circleField } from 'screean';
 import { roundedRectField } from 'screean';
 import type { Field } from 'screean';
-import { Reel } from '../lib/Reel';
+import { Reel } from '../lib/effects/Reel';
 import { type TileGroup, tileStage } from './types';
 
 export const compositionGroup = (themeId: ThemeId): TileGroup => ({

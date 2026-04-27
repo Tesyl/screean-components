@@ -9,8 +9,8 @@ import { renderNav, renderFooter } from '../layout';
 import { Stage, makeColor } from '../embed';
 import { THEMES, DEFAULT_THEME } from '../themes';
 import { spawn, radialImpulse, TRANSPARENT } from 'screean';
-import { stepFlowfield } from '../lib/flowfield';
-import { attachFullscreenButton } from '../lib/fullscreen';
+import { stepFlowfield } from '../lib/physics/flowfield';
+import { attachFullscreenButton } from '../lib/ui/fullscreen';
 
 const DEFAULTS: Record<string, number> = {
   particleCount: 8000,

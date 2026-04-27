@@ -13,7 +13,7 @@ import type { ThemeId } from '../themes';
 import { THEMES } from '../themes';
 import { circle, text, node } from 'screean';
 import type { SceneNode } from 'screean';
-import { Reel } from '../lib/Reel';
+import { Reel } from '../lib/effects/Reel';
 import { type TileGroup, tileStage } from './types';
 
 // 5 words. Brutalist-styled: short, declarative, all-caps. Text fields

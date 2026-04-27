@@ -11,7 +11,7 @@
 
 import { renderNav, renderFooter } from '../layout';
 import { THEMES, DEFAULT_THEME } from '../themes';
-import { attachFullscreenButton } from '../lib/fullscreen';
+import { attachFullscreenButton } from '../lib/ui/fullscreen';
 
 // Theme colors. Pulled out to module scope so the offscreen-texture clear
 // (which happens during pipeline init) can reference them before the

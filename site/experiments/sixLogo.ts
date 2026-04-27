@@ -34,9 +34,9 @@ import {
   textField,
   type Rng,
 } from 'screean';
-import { loadGlb, sampleSurface, centerAndScale, type LoadedMesh } from '../lib/gltf';
-import { attachFullscreenButton } from '../lib/fullscreen';
-import { stepFlowfield } from '../lib/flowfield';
+import { loadGlb, sampleSurface, centerAndScale, type LoadedMesh } from '../lib/loaders/gltf';
+import { attachFullscreenButton } from '../lib/ui/fullscreen';
+import { stepFlowfield } from '../lib/physics/flowfield';
 
 // Visual tuning constants. Live in sync with the controls' default values
 // so a "reset" button can restore the same baseline. Plain object (no

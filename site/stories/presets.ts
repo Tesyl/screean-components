@@ -7,7 +7,7 @@
 import type { ThemeId } from '../themes';
 import { THEMES } from '../themes';
 import { circle, node } from 'screean';
-import { Reel } from '../lib/Reel';
+import { Reel } from '../lib/effects/Reel';
 import { type TileGroup, tileStage } from './types';
 
 const presetBlurbs: Record<'balanced' | 'calm' | 'crisp' | 'dreamy' | 'magnetic', string> = {

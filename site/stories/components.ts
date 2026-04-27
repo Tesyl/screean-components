@@ -15,7 +15,7 @@
 
 import type { ThemeId } from '../themes';
 import { THEMES } from '../themes';
-import { componentReel } from '../lib/componentReel';
+import { componentReel } from '../lib/effects/componentReel';
 import { type TileGroup } from './types';
 
 const MONO_STACK = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';

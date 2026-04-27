@@ -19,11 +19,16 @@ import type { Palette } from '../themes';
 import { scene, camera } from 'screean';
 import { spawn } from 'screean';
 import { TRANSPARENT } from 'screean';
-import { button } from '../../src/components/button';
-import { createPointerTracker } from '../../src/components/pointerTracker';
-import { routePointerEvent } from '../../src/components/routePointerEvent';
-import type { Component } from '../../src/components/types';
-import { attachFullscreenButton } from '../lib/fullscreen';
+// Site code consumes components through the package barrel, same as any
+// external consumer would. Keeps the subdivision (factories/, dom/, routing/)
+// internal to the components package.
+import {
+  button,
+  createPointerTracker,
+  routePointerEvent,
+  type Component,
+} from '../../src/components';
+import { attachFullscreenButton } from '../lib/ui/fullscreen';
 
 // State-keyed palettes. Hue rotates so hover/press/click read as real
 // "different states" rather than tonal jitter. Lit + sat held constant for
