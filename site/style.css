@@ -1,0 +1,1713 @@
+/*
+ * site/style.css — Acid (chic modern brutalist) site design.
+ *
+ * One theme. CSS variables are written by themes.applyTheme() into <body>;
+ * this stylesheet consumes them via var() throughout. The variable layer is
+ * preserved so a future theme switch is one applyTheme() call away.
+ *
+ * Vocabulary:
+ *   • 2px corner radius. Borders 1.5px hairline.
+ *   • Solid offset block shadows (`6px 6px 0 var(--accent)`); no blur.
+ *   • Tabular numerals + ss01 site-wide — engineered, not decorative.
+ *   • Mono UI everywhere except h1/h2/h3 which use --font-head (also mono
+ *     on Acid, but the var stays for forward compat).
+ *
+ * Sections in this file (in order):
+ *   1. Reset + globals
+ *   2. Surface card + buttons
+ *   3. Site nav + footer
+ *   4. Hero + specsheet
+ *   5. Sections (pillars, CTA, generic section-head)
+ *   6. Force playground (interactive)
+ *   7. Choreography reel (interactive)
+ *   8. Components page
+ *   9. Responsive
+ */
+
+:root {
+  color-scheme: light dark;
+  --hairline: 1.5px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'ss01' 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Hard viewport containment. `overflow-x: clip` is stronger than
+     `hidden` — `hidden` still lets some sticky/positioned children
+     escape; `clip` is a strict guarantee no descendant pixel can
+     extend past the box. Both axes get the cap so html-level
+     horizontal scroll can never sneak in. */
+  max-width: 100vw;
+  overflow-x: clip;
+}
+
+body {
+  background: var(--bg);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: clip;
+  max-width: 100vw;
+}
+
+/* SPA root mount — same hard containment. The page renderers all
+   write into #app; locking it to viewport width means whatever any
+   page does inside, the body never gets pushed wider. */
+#app {
+  max-width: 100vw;
+  overflow-x: clip;
+  box-sizing: border-box;
+}
+
+a { color: inherit; text-decoration: none; }
+
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-head);
+  font-weight: 700;
+  letter-spacing: var(--head-tracking);
+  text-transform: var(--head-transform);
+  margin: 0;
+  line-height: 0.96;
+}
+
+p { margin: 0; }
+
+::selection { background: var(--accent); color: var(--fg); }
+
+/* Smooth-scroll for hash anchors in nav. */
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+
+/* ---- Canvas viewport-fit guard ----------------------------------------
+ * Every demo canvas (tile reels, choreography reel, force playground,
+ * experiment stage) has its CSS width + height set INLINE in pixels by
+ * the renderer's resize() (`canvas.style.width = '${cssW}px'`). On wide
+ * viewports those values fit the layout; on narrow viewports they
+ * push past their wrap. The wrap's `overflow: hidden` clips the
+ * canvas, but clipped pixels are still drawn pixels — content is
+ * effectively offscreen.
+ *
+ * `max-width: 100%` caps the canvas's displayed width to its parent
+ * (overrides the inline px width because max-width is a constraint).
+ * `height: auto !important` overrides the inline pixel height and
+ * lets the canvas's intrinsic aspect ratio (from backing-store width
+ * / height) compute a proportional height. Together: the canvas
+ * scales to fit its wrap on any viewport, maintaining aspect ratio.
+ *
+ * The drawing inside doesn't reflow — the canvas's backing store
+ * stays at the renderer's resolved size, the browser CSS-scales the
+ * displayed pixels. Slight blur at extreme scale-down, but content
+ * is *visible* instead of clipped offscreen. */
+.story-canvas,
+.playground-canvas,
+.reel-canvas,
+.experiment-canvas {
+  max-width: 100%;
+  height: auto !important;
+}
+
+/* ---- Surface card — universal container --------------------------------- */
+.surface-card {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 28px;
+}
+
+/* ---- Buttons ------------------------------------------------------------ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 22px;
+  border-radius: var(--radius);
+  border: var(--hairline) solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.12s ease, background 0.12s ease;
+  box-shadow: 4px 4px 0 var(--border);
+}
+.btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--border); }
+.btn:active { transform: translate(0, 0); box-shadow: 2px 2px 0 var(--border); }
+.btn-primary {
+  background: var(--accent);
+  color: var(--fg);
+  border-color: var(--border);
+  box-shadow: 4px 4px 0 var(--border);
+}
+.btn-primary:hover { box-shadow: 6px 6px 0 var(--border); }
+.btn-ghost { background: var(--surface); }
+
+/* ---- Site nav ----------------------------------------------------------- */
+.site-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  background: var(--bg);
+  border-bottom: var(--hairline) solid var(--border);
+  /* Hard width contract: the nav is exactly the viewport's width.
+     `max-width: 100vw` prevents flex children with min-content
+     intrinsic widths from forcing the nav wider than the viewport.
+     `min-width: 0` on the .site-nav itself isn't needed — it's a
+     block-level flex CONTAINER, not a flex item. */
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+}
+.site-nav > * {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+}
+.site-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--fg);
+  border-right: var(--hairline) solid var(--border);
+}
+.brand-mark {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 0;
+  background: var(--accent);
+  border: var(--hairline) solid var(--border);
+}
+.site-nav-spacer { flex: 1; padding: 0; }
+
+/* Section anchor strip in the nav (landing page only). Each item shows an
+   ordinal + label; the active hash gets accent fill. */
+.site-nav-sections {
+  flex: 1;
+  /* min-width: 0 lets the flex child shrink below its content size,
+     so overflow-x: auto can actually engage when the section labels
+     don't all fit. Without it, the strip would force the whole nav
+     wider than the viewport and the rightmost links get cut off. */
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  border-left: var(--hairline) solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.site-nav-sections::-webkit-scrollbar { display: none; }
+.nav-section {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-right: var(--hairline) solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.nav-section:hover { background: var(--subtle); color: var(--fg); }
+.nav-section-num {
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--fg);
+  padding: 2px 6px;
+  font-size: 10px;
+}
+.nav-section-label { font-weight: 600; }
+
+.site-nav-links {
+  display: flex;
+  gap: 0;
+  border-left: var(--hairline) solid var(--border);
+  /* Flex item that's allowed to shrink below its intrinsic content
+     width. Without `min-width: 0`, flex children default to
+     `min-width: auto` = the content's MIN width (sum of links +
+     padding), which means the container refuses to shrink even when
+     the parent flex layout has nothing to give it. The result was
+     content pushing the nav wider than the viewport. With this set,
+     the links container can shrink and the rightmost links scroll
+     into the auto-overflow strip below. */
+  min-width: 0;
+  flex-shrink: 1;
+  /* When content does outgrow the available row width, scroll
+     horizontally inside the strip instead of pushing the parent. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.site-nav-links::-webkit-scrollbar { display: none; }
+.site-nav-links a {
+  padding: 0 16px;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-right: var(--hairline) solid var(--border);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.site-nav-links a:last-child { border-right: 0; }
+.site-nav-links a:hover { background: var(--subtle); color: var(--fg); }
+/* Active item: solid chartreuse fill, black text. Original brutalist
+   look — clean and high-contrast without any particle layer. The top
+   nav doesn't sit over a particle canvas (unlike the sidebar) so
+   black-on-chartreuse reads cleanly. */
+.site-nav-links a.active {
+  background: var(--accent);
+  color: var(--fg);
+}
+
+/* ---- Hero --------------------------------------------------------------- */
+.hero {
+  position: relative;
+  min-height: min(740px, 92vh);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120px 32px 96px;
+  border-bottom: var(--hairline) solid var(--border);
+  overflow: hidden;
+}
+.hero-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: auto;
+}
+.hero-frame {
+  position: absolute;
+  inset: 24px 24px;
+  z-index: 3;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hero-mark {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hero-mark-tl { top: 0; left: 0; }
+.hero-mark-tr { top: 0; right: 0; color: var(--fg); font-weight: 700; }
+.hero-mark-bl { bottom: 0; left: 0; }
+.hero-mark-br { bottom: 0; right: 0; color: var(--fg); font-weight: 700; }
+.hero-mark-tr::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border: var(--hairline) solid var(--border);
+  margin-right: 4px;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+  max-width: 920px;
+  text-align: center;
+}
+.hero-content > *:not(.hero-title) { pointer-events: auto; }
+.hero-title {
+  /* Visible particle copy is the canvas. The HTML title is in the doc
+     for a11y / outline. Visually-hidden but reachable. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hero-blurb {
+  display: inline-block;
+  font-family: var(--font-head);
+  font-size: clamp(20px, 2.6vw, 30px);
+  font-weight: 700;
+  letter-spacing: var(--head-tracking);
+  text-transform: var(--head-transform);
+  background: var(--accent);
+  color: var(--fg);
+  padding: 6px 14px;
+  margin-top: clamp(180px, 22vw, 320px);
+  border: var(--hairline) solid var(--border);
+}
+.hero-deck {
+  margin-top: 22px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  max-width: 540px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.hero-deck em {
+  color: var(--fg);
+  font-style: normal;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--accent) 60%, transparent);
+  padding: 0 4px;
+}
+.hero-actions {
+  margin-top: 30px;
+  display: inline-flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ---- Specsheet — meta strip below hero --------------------------------- */
+.specsheet {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border-bottom: var(--hairline) solid var(--border);
+}
+.specsheet-inner {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+}
+.spec-cell {
+  padding: 18px 20px;
+  border-right: var(--hairline) solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-mono);
+}
+.spec-cell:last-child { border-right: 0; }
+.spec-key {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.spec-val {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--fg);
+  text-transform: uppercase;
+}
+
+/* ---- Generic section heads --------------------------------------------- */
+.pillars, .playground, .reel, .cta {
+  position: relative;
+  z-index: 1;
+  padding: 96px 32px;
+  max-width: 1280px;
+  margin: 0 auto;
+  border-bottom: var(--hairline) solid var(--border);
+}
+.section-head {
+  margin-bottom: 56px;
+  max-width: 720px;
+}
+.section-num {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 8px;
+  margin-bottom: 20px;
+  border-bottom: var(--hairline) solid var(--border);
+}
+.section-head h2 {
+  font-size: clamp(36px, 6vw, 80px);
+  margin-bottom: 18px;
+}
+.section-head p {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  max-width: 540px;
+}
+
+/* ---- Pillars grid ------------------------------------------------------- */
+.pillars-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0;
+  border: var(--hairline) solid var(--border);
+}
+.pillar {
+  padding: 32px;
+  background: var(--surface);
+  border: 0;
+  border-right: var(--hairline) solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+  transition: background 0.15s ease;
+}
+.pillar:hover { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); }
+.pillar:last-child { border-right: 0; }
+.pillar-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: var(--fg);
+  background: var(--accent);
+  display: inline-block;
+  padding: 4px 8px;
+  margin-bottom: 24px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.pillar h3 {
+  font-family: var(--font-head);
+  font-size: 24px;
+  letter-spacing: var(--head-tracking);
+  text-transform: var(--head-transform);
+  margin-bottom: 14px;
+}
+.pillar p {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.65;
+  margin-bottom: 24px;
+}
+.pillar code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--fg);
+  background: var(--bg);
+  padding: 10px 12px;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 700;
+}
+
+/* ---- § 02 — Force Playground ------------------------------------------- */
+.playground-grid {
+  display: grid;
+  /* `auto` sizes the canvas column to the wrap's intrinsic width
+     (max-content). The slider panel takes whatever's left. */
+  grid-template-columns: auto minmax(280px, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+.playground-canvas-wrap {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  /* width: max-content shrinks the wrap to the canvas's intrinsic
+     size on wide viewports (eliminating cream gutters); max-width:
+     100% caps it to the parent's available width on narrow ones, so
+     the wrap can't overflow its grid cell. */
+  width: max-content;
+  max-width: 100%;
+}
+.playground-canvas {
+  display: block;
+  background: var(--bg);
+}
+.playground-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.playground-shape-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg);
+  background: var(--accent);
+  padding: 4px 8px;
+  align-self: flex-start;
+  border: var(--hairline) solid var(--border);
+}
+.playground-shape-btns {
+  display: inline-flex;
+  gap: 0;
+  align-self: flex-start;
+  pointer-events: auto;
+  border: var(--hairline) solid var(--border);
+  background: var(--surface);
+}
+.playground-shape-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 6px 12px;
+  border-right: var(--hairline) solid var(--border);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.playground-shape-btn:last-child { border-right: 0; }
+.playground-shape-btn:hover { background: var(--subtle); color: var(--fg); }
+.playground-shape-btn.active { background: var(--accent); color: var(--fg); }
+
+.playground-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.playground-controls-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: var(--hairline) solid var(--border);
+}
+.playground-controls-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.playground-reset {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border: var(--hairline) solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.playground-reset:hover { background: var(--accent); }
+.playground-knobs {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pg-knob {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pg-knob-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+}
+.pg-knob-label {
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.pg-knob-value {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+.pg-knob-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+.pg-knob-slider:focus { outline: none; }
+.pg-knob-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--subtle);
+  border: var(--hairline) solid var(--border);
+}
+.pg-knob-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  border: var(--hairline) solid var(--border);
+  border-radius: 0;
+  margin-top: -7px;
+  cursor: ew-resize;
+  transition: transform 0.08s ease;
+}
+.pg-knob-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.pg-knob-slider::-moz-range-track {
+  height: 4px;
+  background: var(--subtle);
+  border: var(--hairline) solid var(--border);
+}
+.pg-knob-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  border: var(--hairline) solid var(--border);
+  border-radius: 0;
+  cursor: ew-resize;
+}
+.playground-controls-foot {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: var(--hairline) solid var(--border);
+}
+.playground-code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+/* ---- § 03 — Choreography Reel ------------------------------------------ */
+.reel-grid {
+  display: grid;
+  /* See `.playground-grid` for why `auto` instead of `1.4fr` — the canvas
+     column matches its content's intrinsic size, eliminating cream
+     margins around a smaller canvas. */
+  grid-template-columns: auto minmax(320px, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+.reel-canvas-wrap {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  width: max-content;
+  max-width: 100%;
+}
+.reel-canvas { display: block; background: var(--bg); }
+
+/* Progress bar at the very top of the canvas. The fill is a transformed
+   scaleX(0..1); marks are 1px ticks at each step's start point. */
+.reel-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  z-index: 4;
+  background: color-mix(in srgb, var(--fg) 12%, transparent);
+  border-bottom: var(--hairline) solid var(--border);
+}
+.reel-progress-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
+}
+.reel-progress-marks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.reel-progress-mark {
+  position: absolute;
+  top: 0;
+  width: var(--hairline);
+  height: 100%;
+  background: var(--border);
+}
+
+.reel-overlay {
+  position: absolute;
+  inset: 0;
+  padding: 18px;
+  padding-top: 22px;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+}
+.reel-step-counter {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--fg);
+  background: var(--surface);
+  padding: 3px 8px;
+  align-self: flex-start;
+  border: var(--hairline) solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Big label sits in the bottom-left of the canvas. Dramatic enter
+   animation: slides up + briefly grows when the step changes. */
+.reel-step-label {
+  font-family: var(--font-head);
+  font-size: clamp(36px, 6vw, 72px);
+  font-weight: 800;
+  letter-spacing: var(--head-tracking);
+  text-transform: var(--head-transform);
+  color: var(--fg);
+  align-self: flex-start;
+  background: var(--accent);
+  padding: 6px 16px;
+  border: var(--hairline) solid var(--border);
+  margin-top: auto;
+  box-shadow: 4px 4px 0 var(--border);
+}
+.reel-step-label--enter {
+  animation: reel-label-in 0.34s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes reel-label-in {
+  0%   { transform: translate(-12px, 8px) scale(0.92); opacity: 0; }
+  60%  { transform: translate(0, 0) scale(1.04); opacity: 1; }
+  100% { transform: translate(0, 0) scale(1); opacity: 1; }
+}
+
+.reel-step-hint {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: var(--fg);
+  background: var(--surface);
+  padding: 4px 8px;
+  align-self: flex-start;
+  border: var(--hairline) solid var(--border);
+  max-width: 100%;
+  word-wrap: break-word;
+}
+
+.reel-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.reel-strip-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: var(--hairline) solid var(--border);
+}
+.reel-strip-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.reel-strip-controls { display: inline-flex; gap: 8px; }
+.reel-toggle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border: var(--hairline) solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  transition: background 0.12s ease;
+}
+.reel-toggle:hover { background: var(--accent); }
+.reel-toggle[data-state="paused"] { background: var(--accent); }
+
+/* Rate slider mini-component. Same brutalist style as the playground
+   knobs but standalone so the visual reads as its own control. */
+.reel-rate {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: var(--hairline) solid var(--border);
+}
+.reel-rate-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+}
+.reel-rate-label {
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.reel-rate-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+.reel-rate-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+.reel-rate-slider:focus { outline: none; }
+.reel-rate-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--subtle);
+  border: var(--hairline) solid var(--border);
+}
+.reel-rate-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  border: var(--hairline) solid var(--border);
+  border-radius: 0;
+  margin-top: -7px;
+  cursor: ew-resize;
+}
+.reel-rate-slider::-moz-range-track {
+  height: 4px;
+  background: var(--subtle);
+  border: var(--hairline) solid var(--border);
+}
+.reel-rate-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  border: var(--hairline) solid var(--border);
+  border-radius: 0;
+  cursor: ew-resize;
+}
+.reel-rate-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.reel-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: var(--hairline) solid var(--border);
+}
+.reel-step {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  border-bottom: var(--hairline) solid var(--border);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.reel-step:last-child { border-bottom: 0; }
+.reel-step:hover { background: var(--subtle); }
+.reel-step.active {
+  background: var(--accent);
+  color: var(--fg);
+}
+.reel-step-num {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  padding: 2px 6px;
+}
+.reel-step.active .reel-step-num { background: var(--fg); color: var(--accent); border-color: var(--fg); }
+.reel-step-name {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+.reel-step-meta {
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.reel-step.active .reel-step-meta { color: var(--fg); font-weight: 700; }
+
+/* Code panel showing the active step's API call. Lives in the side
+   strip's footer; its label updates with each step. */
+.reel-code-foot {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: var(--hairline) solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.reel-code-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.reel-code-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.reel-code-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fg);
+  background: var(--accent);
+  padding: 2px 8px;
+  border: var(--hairline) solid var(--border);
+}
+.reel-code {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--fg);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  padding: 10px 12px;
+  white-space: pre;
+  overflow-x: auto;
+  /* Soft fade-in when the step changes; reading flow stays intact. */
+  animation: reel-code-in 0.18s ease-out;
+}
+.reel-code code { display: block; }
+@keyframes reel-code-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ---- § 04 — CTA -------------------------------------------------------- */
+.cta-card {
+  text-align: left;
+  padding: 64px 48px;
+  background: var(--surface);
+}
+.cta-card .section-num { margin-bottom: 24px; }
+.cta-card h2 {
+  font-size: clamp(36px, 6vw, 72px);
+  margin-bottom: 16px;
+}
+.cta-card p {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  margin-bottom: 36px;
+}
+.cta-actions {
+  display: inline-flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ---- Footer ------------------------------------------------------------ */
+.site-footer {
+  position: relative;
+  z-index: 1;
+  padding: 32px 32px 56px;
+  border-top: 0;
+}
+.site-footer-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-head);
+  font-weight: 800;
+  letter-spacing: var(--head-tracking);
+  text-transform: var(--head-transform);
+  color: var(--fg);
+}
+.footer-meta { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.footer-meta a {
+  color: var(--fg);
+  border-bottom: var(--hairline) solid var(--border);
+  padding-bottom: 1px;
+}
+.footer-meta a:hover { color: var(--fg); border-bottom-color: var(--accent); background: color-mix(in srgb, var(--accent) 50%, transparent); }
+.dot { color: var(--muted); }
+
+/* ---- Components page --------------------------------------------------- */
+.doc-head {
+  position: relative;
+  z-index: 1;
+  /* `min(1280px, 100%)` instead of bare 1280px so the container
+     never exceeds the viewport's width, even on devices reporting
+     odd CSS pixel dimensions. `box-sizing: border-box` makes the
+     padding count INSIDE the max-width, so we don't accidentally
+     overflow by 64px on narrow viewports. */
+  max-width: min(1280px, 100%);
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 96px 32px 32px;
+  border-bottom: var(--hairline) solid var(--border);
+}
+.doc-eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--fg);
+  background: var(--accent);
+  margin-bottom: 16px;
+  padding: 4px 8px;
+  border: var(--hairline) solid var(--border);
+}
+.doc-head h1 {
+  font-size: clamp(48px, 7vw, 96px);
+  margin-bottom: 16px;
+}
+.doc-head p {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  font-size: 13px;
+  max-width: 520px;
+}
+
+/* Two-column layout: sticky left sidebar + content pane on the right. */
+.doc-main {
+  position: relative;
+  z-index: 1;
+  /* `min(1280px, 100%)` so the container never exceeds the viewport's
+     CSS pixel width — even on a 1440 portrait monitor (the "21" or
+     27" rotated" setup) the page can't overflow horizontally.
+     `box-sizing: border-box` makes the 32px padding count inside
+     the max-width, not on top of it. */
+  max-width: min(1280px, 100%);
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 32px 32px 96px;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.doc-sidebar {
+  /* Sticks under the site nav on scroll. The 88px offset accounts for the
+     sticky nav bar height; tweak together with site-nav padding. */
+  position: sticky;
+  top: 88px;
+}
+/* Wraps the <ol> so the screean nav helper has a positioning anchor for
+   its absolutely-mounted canvas overlay. No `background:` — the canvas
+   overlay is the visual layer, and a wrap bg here just adds a competing
+   cream surface that bleeds through portal-mode gaps. The border +
+   offset shadow stay; they're the brutalist outline of the sidebar. */
+.doc-nav-wrap {
+  position: relative;
+  border: var(--hairline) solid var(--border);
+  box-shadow: 4px 4px 0 var(--border);
+}
+.doc-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Sit above the canvas overlay (which is z:0 inside .doc-nav-wrap). */
+  position: relative;
+  z-index: 1;
+}
+.doc-nav-item {
+  display: block;
+}
+.doc-nav-btn {
+  width: 100%;
+  text-align: left;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: var(--hairline) solid var(--border);
+  /* Transparent — the chartreuse "active" fill is painted by the
+     screean nav's particle cloud underneath. The DOM button only
+     contributes pointer events + text + a11y. */
+  background: transparent;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.12s ease;
+}
+.doc-nav-item:last-child .doc-nav-btn { border-bottom: 0; }
+.doc-nav-btn:hover {
+  /* Subtle chartreuse tint on dark — reads as "interactive" without
+     competing with the active item's full chartreuse particle fill. */
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+/* Active item: NO solid underlay. The chartreuse particle field
+   stays the only fill, so the magic ("particles ARE the highlight")
+   reads. Readability is recovered via the text-shadow halo below —
+   active text gets a 1px cream halo around the letters (when text
+   is dark) or a black halo (when text is light). The halo gives
+   separation from the noisy particle bg without dimming particles
+   underneath. */
+.doc-nav-item.active .doc-nav-btn {
+  background: transparent;
+}
+/* Cream letters on the chartreuse particle fill. The active rect is
+   chartreuse particles on dark navy canvas; cream text reads on both
+   the bright particle clusters and the dark gaps without competing
+   with the chartreuse. Bumped to weight 800 so the active item
+   physically reads heavier than its peers. */
+.doc-nav-item.active .doc-nav-name,
+.doc-nav-item.active .doc-nav-count {
+  color: var(--bg);
+  font-weight: 800;
+}
+.doc-nav-num {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  /* Inactive: fully transparent — no chip pill bg, no border. The
+     number is just dimmed cream text on the dark canvas, matching
+     the rest of the inactive nav item's "transparent over dark"
+     vocabulary. Active state inverts to a chartreuse pill (rule
+     further down). */
+  color: color-mix(in srgb, var(--bg) 70%, transparent);
+  background: transparent;
+  border: var(--hairline) solid transparent;
+  padding: 2px 6px;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+.doc-nav-name {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  /* Cream — the sidebar canvas is dark navy (opaque mode) so cream
+     text is the legible default. Active items bump to weight 800. */
+  color: var(--bg);
+}
+.doc-nav-count {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  /* Dimmed cream — semi-transparent against the dark canvas reads as
+     a muted secondary label without losing legibility. */
+  color: color-mix(in srgb, var(--bg) 60%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+/* Active item: NO background fill — that's the canvas's job. We only
+   restyle the inner num badge so it doesn't disappear into the
+   chartreuse particle cloud. Text color stays var(--fg) which is
+   black on chartreuse — readable. */
+.doc-nav-item.active .doc-nav-num {
+  background: var(--fg);
+  color: var(--accent);
+  border-color: var(--fg);
+}
+
+.doc-content {
+  min-width: 0;
+}
+.doc-group-head {
+  margin-bottom: 24px;
+  border-bottom: var(--hairline) solid var(--border);
+  padding-bottom: 14px;
+}
+.doc-group-num {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: var(--hairline) solid var(--border);
+}
+.doc-group-head h2 {
+  font-family: var(--font-head);
+  font-size: clamp(28px, 4vw, 44px);
+  letter-spacing: var(--head-tracking);
+  text-transform: var(--head-transform);
+  margin: 0 0 8px 0;
+}
+.doc-group-head p {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  letter-spacing: 0.02em;
+  max-width: 640px;
+}
+
+/* Collapsed sidebar at portrait/narrow viewports. The 8 group
+   buttons become a horizontal grid of chips that WRAPS to multiple
+   rows when they don't fit on one — instead of the previous
+   horizontal-scroll strip, which made later items disappear past
+   the right edge with no affordance to discover them. */
+@media (max-width: 1440px) {
+  .doc-main {
+    grid-template-columns: 1fr;
+    padding: 24px 20px 64px;
+    gap: 18px;
+  }
+  .doc-sidebar { position: static; top: auto; }
+  .doc-nav-wrap {
+    /* Drop the offset shadow on mobile/portrait so the strip
+       doesn't double up visual weight. Border stays. */
+    box-shadow: none;
+  }
+  .doc-nav {
+    /* flex-wrap: wrap means chips that don't fit one row drop to
+       the next row instead of scrolling out of sight. The whole
+       nav stays within the viewport at any width. */
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .doc-nav-item {
+    /* min-width: 0 lets the chip shrink below its content's
+       intrinsic min-width if needed (e.g., 'choreography' is wider
+       than 'fields'). flex: 1 1 auto so each item grows to fill
+       remaining row space — last-row items don't leave a stranded
+       gap on the right. */
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .doc-nav-btn {
+    width: 100%;
+    border-bottom: 0;
+    border-right: var(--hairline) solid var(--border);
+    white-space: nowrap;
+    grid-template-columns: auto auto auto;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  /* Last item's right border drops on the wrap-aware version. We
+     can't reliably target "last in row" with CSS, so drop right
+     border on the visually-last item only. Items in the middle of
+     a row keep right borders for visual structure. */
+  .doc-nav-item:last-child .doc-nav-btn { border-right: 0; }
+}
+
+.doc-grid {
+  display: grid;
+  /* Columns target 348px = 320 (TILE_W) + 28 (card padding 14*2).
+     `minmax(min(348px, 100%), 348px)` is the load-bearing trick:
+     the lower bound `min(348px, 100%)` collapses to the parent's
+     own width when the parent is narrower than 348, so a single
+     column shrinks instead of overflowing the page. At wider
+     parents both bounds are 348, the column is exactly 348, and
+     auto-fit packs as many as fit. justify-content: center keeps
+     the grid centered with empty trailing space rather than
+     stretching. */
+  grid-template-columns: repeat(auto-fit, minmax(min(348px, 100%), 348px));
+  justify-content: center;
+  gap: 16px;
+}
+.story-card {
+  padding: 14px;
+  background: var(--surface);
+  border: var(--hairline) solid var(--border);
+  box-shadow: 4px 4px 0 var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  /* Grid items default to min-width: auto = the content's intrinsic
+     min-width. The .story-code child has white-space: nowrap so its
+     intrinsic min-width is the FULL unbroken snippet width — which
+     can be 500+px for the longer API-call examples. Without this
+     line, the card refuses to shrink below that width and pushes
+     the grid column past the viewport. With min-width: 0, the card
+     shrinks to whatever the column gives it and .story-code's own
+     overflow-x: auto becomes the real safety net (the snippet
+     scrolls horizontally inside its tile). */
+  min-width: 0;
+}
+.story-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--accent);
+}
+.story-canvas-wrap {
+  position: relative;
+  /* `width: max-content` sizes the wrap to the canvas's intrinsic
+     pixel size on wide viewports (320×200 here), eliminating cream
+     gutters around the canvas. `max-width: 100%` caps it to the
+     parent's available width on narrow viewports — without it, a
+     320-wide wrap would overflow a card content area smaller than
+     320 (e.g., the doc-grid's collapsed-min column on a phone). */
+  width: max-content;
+  max-width: 100%;
+  border: var(--hairline) solid var(--border);
+  overflow: hidden;
+  background: var(--bg);
+  /* Card uses align-items: stretch by default; align-self: center keeps
+     the wrap horizontally centered when the card is wider. */
+  align-self: center;
+}
+.story-canvas { display: block; }
+
+/* Component-reveal overlay — hosts the real DOM component (button, input,
+   toggle, etc.) absolutely positioned over the canvas. The component
+   itself owns its opacity transition; the overlay is just a positioning
+   layer.
+
+   Two modes: default (opacity 0, used by reveal-on-settle patterns) and
+   `--always` (opacity 1 throughout, used by the Phase 3a dissolve-and-
+   reform pattern where the DOM element's *own* opacity cycles 0/1). */
+.story-component-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+}
+.story-component-overlay--always {
+  opacity: 1;
+  /* No pointer-events here — the inner real-button manages its own,
+     toggling none/auto as the dissolve/reform cycle progresses. */
+  pointer-events: none;
+}
+.story-component-overlay[style*="opacity: 1"] { pointer-events: auto; }
+
+/* Visual styles for `.story-real-button` are set inline by the tile JS
+   (site/stories/components.ts) using literal hex values from theme
+   tokens — CSS custom properties don't survive the foreignObject
+   rasterization that turns the live element into a BitmapField. The
+   class remains as a marker for future hover/press rules that DO
+   survive (transforms, transitions are fine; only color lookups
+   broke). */
+.story-meta h3 {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  margin: 0 0 4px 0;
+}
+.story-meta p {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.story-code {
+  display: block;
+  width: 100%;
+  /* min-width: 0 + box-sizing: border-box together let the element
+     actually constrain its scroll-x viewport at the parent's width.
+     Without min-width: 0, the inline-block default `min-width: auto`
+     equals the unbroken-text width, defeating overflow-x: auto and
+     pushing the parent (and the entire grid track) past the viewport. */
+  min-width: 0;
+  box-sizing: border-box;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  cursor: copy;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+.story-code:hover { background: color-mix(in srgb, var(--accent) 30%, var(--bg)); }
+.story-code.copied { background: var(--accent); color: var(--fg); }
+
+/* ---- Experiments index ------------------------------------------------- */
+.experiment-index {
+  position: relative;
+  z-index: 1;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 32px 96px;
+}
+.experiment-index-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+.experiment-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  background: var(--surface);
+  border: var(--hairline) solid var(--border);
+  box-shadow: 4px 4px 0 var(--border);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  position: relative;
+}
+.experiment-card:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 7px 7px 0 var(--accent);
+}
+.experiment-card-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: var(--fg);
+  background: var(--accent);
+  padding: 2px 8px;
+  align-self: flex-start;
+  border: var(--hairline) solid var(--border);
+}
+.experiment-card-title {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  color: var(--fg);
+}
+.experiment-card-blurb {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.experiment-card-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.experiment-card-topics code {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--fg);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  padding: 3px 7px;
+}
+.experiment-card-cta {
+  margin-top: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--fg);
+  border-top: var(--hairline) solid var(--border);
+  padding-top: 12px;
+}
+
+/* ---- Single experiment page ------------------------------------------- */
+.experiment-stage {
+  position: relative;
+  z-index: 1;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 32px 96px;
+  display: grid;
+  grid-template-columns: auto minmax(280px, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+.experiment-canvas-wrap {
+  padding: 0;
+  overflow: hidden;
+  width: max-content;
+  max-width: 100%;
+}
+.experiment-canvas {
+  display: block;
+  background: var(--bg);
+  cursor: pointer;
+}
+.experiment-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.experiment-aside-head {
+  padding-bottom: 12px;
+  border-bottom: var(--hairline) solid var(--border);
+}
+.experiment-aside-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.experiment-state {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: var(--hairline) solid var(--border);
+}
+.state-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  padding: 10px 12px;
+  border-bottom: var(--hairline) solid var(--border);
+  font-family: var(--font-mono);
+}
+.state-row:last-child { border-bottom: 0; }
+.state-row dt {
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin: 0;
+}
+.state-row dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--fg);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.experiment-aside-foot {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: var(--hairline) solid var(--border);
+}
+.experiment-aside-foot code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---- Responsive -------------------------------------------------------- */
+/* Bumped from 1080 to 1280 so portrait monitors (rotated 27" 1440p)
+   get single-column layouts on the bigger reel/playground/experiment
+   sections. Above 1280 the 2-col layout (canvas + side panel) fits
+   comfortably; below it the side panel gets squeezed. */
+@media (max-width: 1440px) {
+  .playground-grid, .reel-grid, .experiment-stage { grid-template-columns: 1fr; }
+  /* On narrow viewports the fixed canvas widths (560–720px) can
+     overflow the available column. `max-width: 100%` lets the wrap
+     clip; the canvas inside still renders at its native pixel size
+     so the visible portion is sharp. `overflow-x: hidden` on body
+     prevents page-level horizontal scroll bars. */
+  .playground-canvas-wrap, .reel-canvas-wrap, .experiment-canvas-wrap {
+    max-width: 100%;
+  }
+}
+/* Top nav: 3 horizontal strips (brand + sections + links) sum to
+   ~1400px on the landing page. Below 1280 they wrap into rows so
+   nothing skims the viewport edge. */
+@media (max-width: 1440px) {
+  .site-nav { flex-wrap: wrap; }
+  .site-nav-spacer { display: none; }
+  .site-nav-sections { width: 100%; border-left: 0; border-top: var(--hairline) solid var(--border); }
+  .site-nav-links { border-left: 0; flex: 1; border-top: var(--hairline) solid var(--border); }
+}
+@media (max-width: 720px) {
+  .hero { padding: 88px 20px 64px; min-height: 600px; }
+  .hero-frame { inset: 12px 12px; font-size: 9px; }
+  .pillars, .playground, .reel, .cta { padding: 64px 20px; }
+  .doc-head { padding: 72px 20px 24px; }
+  .doc-group { padding: 32px 20px 24px; }
+  .pillars-grid { grid-template-columns: 1fr; }
+  .pillar { border-right: 0; border-bottom: var(--hairline) solid var(--border); }
+  .pillar:last-child { border-bottom: 0; }
+  .specsheet-inner { grid-template-columns: repeat(2, 1fr); }
+  .spec-cell:nth-child(2n) { border-right: 0; }
+  .spec-cell { border-bottom: var(--hairline) solid var(--border); }
+}

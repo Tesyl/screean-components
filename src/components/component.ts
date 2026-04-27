@@ -64,6 +64,9 @@ export const component = (
     pressed: opts.pressed,
     checked: opts.checked,
     font: opts.font,
+    value: opts.value,
+    min: opts.min,
+    max: opts.max,
     handlers,
   });
   (node as Component)._component = internals;

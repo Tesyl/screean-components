@@ -137,11 +137,19 @@ export type SizedOpts = {
 // the DOM mirror need to agree on — storing it on the component gives the
 // mirror the authoritative value to inline so particles and DOM text
 // always render at the same size.
+//
+// `value`/`min`/`max` carry the slider/range axis: domMirror writes
+// `aria-valuenow`/`aria-valuemin`/`aria-valuemax` when present. Set on
+// role=slider (or role=spinbutton if/when added). Leave undefined for
+// every other component — the mirror skips emitting the attrs.
 export type ComponentOpts = InteractiveOpts & {
   // CSS font shorthand (e.g. '500 16px system-ui'). When set, `domMirror`
   // inlines this on the mirror div so DOM text matches the particle text
   // exactly. When undefined, the mirror falls back to consumer CSS.
   font?: string;
+  value?: number;
+  min?: number;
+  max?: number;
 };
 
 // A component IS a SceneNode. The internals live under `_component`; regular
@@ -165,6 +173,13 @@ export type ComponentInternals = {
   // rendered DOM text matches the particle-rendered text size/family.
   // Undefined when the consumer didn't set one (mirror falls back to CSS).
   font: string | undefined;
+  // Range-axis state for role=slider. `undefined` = component does not
+  // participate in the value axis; mirror skips aria-valuenow / -valuemin
+  // / -valuemax. A default of 0 would wrongly tag every component as a
+  // sliderable to assistive tech.
+  value: number | undefined;
+  min: number | undefined;
+  max: number | undefined;
   handlers: Readonly<ComponentHandlers>;
 };
 

@@ -27,6 +27,9 @@ export {
 
 export { label, type LabelOpts } from './label';
 export { button, type ButtonOpts } from './button';
+export { card, type CardOpts } from './card';
+export { toggle, type ToggleOpts } from './toggle';
+export { slider, type SliderOpts } from './slider';
 
 export {
   routePointerEvent,

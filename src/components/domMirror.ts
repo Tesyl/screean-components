@@ -98,6 +98,9 @@ type MirrorEntry = {
   lastPressed: boolean | undefined;
   lastChecked: boolean | 'mixed' | undefined;
   lastFont: string | undefined;
+  lastValue: number | undefined;
+  lastMin: number | undefined;
+  lastMax: number | undefined;
   // Listener handles so dispose() can detach them. Closure captures the
   // component by reference; handler-lookup is deferred to event time so
   // swapping handler identities Just Works (though our components freeze
@@ -160,6 +163,13 @@ const createEntry = (c: Component): MirrorEntry => {
   if (i.checked !== undefined) {
     div.setAttribute('aria-checked', String(i.checked));
   }
+  // Slider value axis. Only emitted when the component participates;
+  // undefined → leave attr off entirely. We don't default min/max to 0/100
+  // because that's a UI convention, not an a11y one — let the consumer be
+  // explicit when the axis matters.
+  if (i.value !== undefined) div.setAttribute('aria-valuenow', String(i.value));
+  if (i.min !== undefined) div.setAttribute('aria-valuemin', String(i.min));
+  if (i.max !== undefined) div.setAttribute('aria-valuemax', String(i.max));
   // Inline the CSS font shorthand so DOM text matches the particle text.
   // screean's `text()` field defaults to `bold 96px system-ui`; any consumer
   // CSS that disagrees produces a jarring size jump when particles reform.
@@ -227,6 +237,9 @@ const createEntry = (c: Component): MirrorEntry => {
     lastPressed: i.pressed,
     lastChecked: i.checked,
     lastFont: i.font,
+    lastValue: i.value,
+    lastMin: i.min,
+    lastMax: i.max,
     onClick,
     onKey,
   };
@@ -266,6 +279,21 @@ const syncAriaIfChanged = (entry: MirrorEntry, c: Component): void => {
     entry.lastFont = i.font;
     entry.div.style.font = i.font ?? '';
     entry.div.style.lineHeight = i.font !== undefined ? '1' : '';
+  }
+  if (entry.lastValue !== i.value) {
+    entry.lastValue = i.value;
+    if (i.value === undefined) entry.div.removeAttribute('aria-valuenow');
+    else entry.div.setAttribute('aria-valuenow', String(i.value));
+  }
+  if (entry.lastMin !== i.min) {
+    entry.lastMin = i.min;
+    if (i.min === undefined) entry.div.removeAttribute('aria-valuemin');
+    else entry.div.setAttribute('aria-valuemin', String(i.min));
+  }
+  if (entry.lastMax !== i.max) {
+    entry.lastMax = i.max;
+    if (i.max === undefined) entry.div.removeAttribute('aria-valuemax');
+    else entry.div.setAttribute('aria-valuemax', String(i.max));
   }
 };
 

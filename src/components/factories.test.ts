@@ -7,6 +7,9 @@ import {
 import { __resetComponentIds } from './component';
 import { button } from './button';
 import { label } from './label';
+import { card } from './card';
+import { toggle } from './toggle';
+import { slider } from './slider';
 import { isComponent } from './types';
 
 beforeAll(installOffscreenCanvasStub);
@@ -111,5 +114,104 @@ describe('button()', () => {
   it('checked flag flows through (for button-as-checkbox)', () => {
     const b = button({ label: 'Agree', onClick: () => {}, checked: 'mixed' });
     expect(b._component.checked).toBe('mixed');
+  });
+});
+
+describe('card()', () => {
+  it('produces a Component with role=none by default (decorative)', () => {
+    const c = card({ title: 'Stat', body: '42 widgets' });
+    expect(isComponent(c)).toBe(true);
+    expect(c._component.role).toBe('none');
+  });
+
+  it('defaults ariaLabel from the title', () => {
+    const c = card({ title: 'Hello', body: 'world' });
+    expect(c._component.ariaLabel).toBe('Hello');
+  });
+
+  it('captures titleFont on internals so the mirror sizes correctly', () => {
+    const c = card({
+      title: 'X',
+      body: 'Y',
+      titleFont: '700 22px serif',
+    });
+    expect(c._component.font).toBe('700 22px serif');
+  });
+
+  it('honors explicit dimensions', () => {
+    const c = card({
+      title: 'A',
+      body: 'B',
+      width: 320,
+      height: 200,
+    });
+    expect(c.intrinsic?.w).toBe(320);
+    expect(c.intrinsic?.h).toBe(200);
+  });
+});
+
+describe('toggle()', () => {
+  it('produces a Component with role=switch', () => {
+    const t = toggle({ on: false, onChange: () => {} });
+    expect(isComponent(t)).toBe(true);
+    expect(t._component.role).toBe('switch');
+  });
+
+  it('checked mirrors `on` so domMirror writes aria-checked', () => {
+    const tOn = toggle({ on: true, onChange: () => {} });
+    const tOff = toggle({ on: false, onChange: () => {} });
+    expect(tOn._component.checked).toBe(true);
+    expect(tOff._component.checked).toBe(false);
+  });
+
+  it('wires onChange as the onClick handler', () => {
+    const onChange = () => {};
+    const t = toggle({ on: false, onChange });
+    expect(t._component.handlers.onClick).toBe(onChange);
+  });
+
+  it('default ariaLabel reflects the on/off state', () => {
+    expect(toggle({ on: true, onChange: () => {} })._component.ariaLabel).toBe('on');
+    expect(toggle({ on: false, onChange: () => {} })._component.ariaLabel).toBe('off');
+  });
+
+  it('intrinsic bounds match width/height', () => {
+    const t = toggle({ on: false, onChange: () => {}, width: 100, height: 48 });
+    expect(t.intrinsic?.w).toBe(100);
+    expect(t.intrinsic?.h).toBe(48);
+  });
+});
+
+describe('slider()', () => {
+  it('produces a Component with role=slider', () => {
+    const s = slider({ value: 0.5, onChange: () => {} });
+    expect(isComponent(s)).toBe(true);
+    expect(s._component.role).toBe('slider');
+  });
+
+  it('value/min/max land on internals so domMirror writes aria-valuenow etc.', () => {
+    const s = slider({ value: 30, min: 0, max: 100, onChange: () => {} });
+    expect(s._component.value).toBe(30);
+    expect(s._component.min).toBe(0);
+    expect(s._component.max).toBe(100);
+  });
+
+  it('defaults min=0 / max=1 when omitted', () => {
+    const s = slider({ value: 0.7, onChange: () => {} });
+    expect(s._component.min).toBe(0);
+    expect(s._component.max).toBe(1);
+  });
+
+  it('clamps value to [min, max]', () => {
+    const above = slider({ value: 9, min: 0, max: 1, onChange: () => {} });
+    const below = slider({ value: -1, min: 0, max: 1, onChange: () => {} });
+    expect(above._component.value).toBe(1);
+    expect(below._component.value).toBe(0);
+  });
+
+  it('wires onChange as the onClick handler', () => {
+    const onChange = () => {};
+    const s = slider({ value: 0.5, onChange });
+    expect(s._component.handlers.onClick).toBe(onChange);
   });
 });
