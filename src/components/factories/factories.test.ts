@@ -10,6 +10,9 @@ import { label } from './label';
 import { card } from './card';
 import { toggle } from './toggle';
 import { slider } from './slider';
+import { checkbox } from './checkbox';
+import { radio } from './radio';
+import { textField } from './textField';
 import { isComponent } from '../types';
 
 beforeAll(installOffscreenCanvasStub);
@@ -213,5 +216,106 @@ describe('slider()', () => {
     const onChange = () => {};
     const s = slider({ value: 0.5, onChange });
     expect(s._component.handlers.onClick).toBe(onChange);
+  });
+});
+
+describe('checkbox()', () => {
+  it('produces a Component with role=checkbox', () => {
+    const c = checkbox({ checked: false, onChange: () => {} });
+    expect(isComponent(c)).toBe(true);
+    expect(c._component.role).toBe('checkbox');
+  });
+
+  it('checked flag flows through (true / false / mixed)', () => {
+    const off = checkbox({ checked: false, onChange: () => {} });
+    const on = checkbox({ checked: true, onChange: () => {} });
+    const tri = checkbox({ checked: 'mixed', onChange: () => {} });
+    expect(off._component.checked).toBe(false);
+    expect(on._component.checked).toBe(true);
+    expect(tri._component.checked).toBe('mixed');
+  });
+
+  it('renders only chrome when unchecked, chrome+mark when checked', () => {
+    const off = checkbox({ checked: false, onChange: () => {} });
+    const on = checkbox({ checked: true, onChange: () => {} });
+    expect(off.children).toHaveLength(1); // chrome only
+    expect(on.children).toHaveLength(2);  // chrome + mark
+  });
+
+  it('mixed state renders an indeterminate slab', () => {
+    const tri = checkbox({ checked: 'mixed', onChange: () => {} });
+    expect(tri.children).toHaveLength(2);
+  });
+
+  it('wires onChange as onClick', () => {
+    const onChange = () => {};
+    const c = checkbox({ checked: false, onChange });
+    expect(c._component.handlers.onClick).toBe(onChange);
+  });
+});
+
+describe('radio()', () => {
+  it('produces a Component with role=radio', () => {
+    const r = radio({ checked: false, onChange: () => {} });
+    expect(isComponent(r)).toBe(true);
+    expect(r._component.role).toBe('radio');
+  });
+
+  it('checked flag flows through', () => {
+    expect(radio({ checked: true, onChange: () => {} })._component.checked).toBe(true);
+    expect(radio({ checked: false, onChange: () => {} })._component.checked).toBe(false);
+  });
+
+  it('renders only ring when unchecked, ring+dot when checked', () => {
+    const off = radio({ checked: false, onChange: () => {} });
+    const on = radio({ checked: true, onChange: () => {} });
+    expect(off.children).toHaveLength(1);
+    expect(on.children).toHaveLength(2);
+  });
+
+  it('default ariaLabel reflects selection state', () => {
+    expect(radio({ checked: true, onChange: () => {} })._component.ariaLabel).toBe('selected');
+    expect(radio({ checked: false, onChange: () => {} })._component.ariaLabel).toBe('not selected');
+  });
+});
+
+describe('textField()', () => {
+  it('produces a Component with role=textbox', () => {
+    const t = textField({ value: '', onChange: () => {} });
+    expect(isComponent(t)).toBe(true);
+    expect(t._component.role).toBe('textbox');
+  });
+
+  it('captures value as textValue on internals', () => {
+    const t = textField({ value: 'hello', onChange: () => {} });
+    expect(t._component.textValue).toBe('hello');
+  });
+
+  it('wires onChange as the onInput handler', () => {
+    const onChange = () => {};
+    const t = textField({ value: '', onChange });
+    expect(t._component.handlers.onInput).toBe(onChange);
+    // Click is NOT wired — typing fires onInput, not onClick.
+    expect(t._component.handlers.onClick).toBeUndefined();
+  });
+
+  it('omits the text leaf when value is empty', () => {
+    const t = textField({ value: '', onChange: () => {} });
+    expect(t.children).toHaveLength(1); // chrome only
+  });
+
+  it('includes a text leaf when value is non-empty', () => {
+    const t = textField({ value: 'x', onChange: () => {} });
+    expect(t.children).toHaveLength(2); // chrome + text
+  });
+
+  it('default ariaLabel is "text input" when none provided', () => {
+    const t = textField({ value: '', onChange: () => {} });
+    expect(t._component.ariaLabel).toBe('text input');
+  });
+
+  it('explicit ariaLabel wins', () => {
+    const t = textField({ value: '', onChange: () => {}, ariaLabel: 'Email' });
+    expect(t._component.ariaLabel).toBe('Email');
   });
 });

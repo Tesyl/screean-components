@@ -27,20 +27,32 @@ import type { SceneNode, Vec2 } from 'screean';
 // fail compilation. Expand deliberately when a new factory lands.
 export type AriaRole =
   | 'button'
+  | 'checkbox'
   | 'heading'
   | 'img'
   | 'link'
   | 'none'
+  | 'radio'
   | 'slider'
   | 'switch'
-  | 'text';
+  | 'text'
+  | 'textbox';
 
 // World-space coords are the primary; screen/local exposed for consumers that
 // need them (gesture overlays, local-space drag math). Keeping them eager
 // rather than lazy keeps the shape predictable at log/print time — the ~32
 // bytes of allocation per event is not a hot-path concern for pointer events.
 export type ComponentEvent = {
-  type: 'click' | 'pointerdown' | 'pointerup' | 'pointermove' | 'pointerenter' | 'pointerleave';
+  type:
+    | 'click'
+    | 'pointerdown'
+    | 'pointerup'
+    | 'pointermove'
+    | 'pointerenter'
+    | 'pointerleave'
+    // Continuous text-input event. Fires per keystroke from a textbox
+    // mirror's underlying <input>. `value` carries the new string.
+    | 'input';
   // Primary coord — post-camera-inverse world space, matches `field.contains`.
   x: number;
   y: number;
@@ -54,6 +66,9 @@ export type ComponentEvent = {
   readonly local: Vec2;
   // The component whose handler is firing.
   component: Component;
+  // Populated for `type: 'input'` events. Carries the new text content of
+  // the underlying <input> mirror element. Undefined for all other events.
+  value?: string;
 };
 
 export type Handler = (e: ComponentEvent) => void;
@@ -74,6 +89,11 @@ export type ComponentHandlers = {
   onPointerLeave?: Handler;
   onPointerDown?: Handler;
   onPointerUp?: Handler;
+  // Fires per keystroke for textbox-role components. The DOM mirror's
+  // <input> element drives this — the consumer reads `e.value` for the new
+  // string and rebuilds the component (controlled-input pattern, same as
+  // every other state axis here).
+  onInput?: Handler;
 };
 
 // ─── opt-shape hierarchy ────────────────────────────────────────────────────
@@ -150,6 +170,11 @@ export type ComponentOpts = InteractiveOpts & {
   value?: number;
   min?: number;
   max?: number;
+  // Text-input value for role=textbox components. The DOM mirror sets the
+  // underlying <input>.value from this field. Distinct from `value` (which
+  // is the numeric range axis for sliders) so the two state surfaces don't
+  // collide on a single component.
+  textValue?: string;
 };
 
 // A component IS a SceneNode. The internals live under `_component`; regular
@@ -180,6 +205,10 @@ export type ComponentInternals = {
   value: number | undefined;
   min: number | undefined;
   max: number | undefined;
+  // Text-input state for role=textbox. domMirror writes it as the
+  // underlying <input>.value; undefined = component is not text-editable
+  // and the mirror renders a <div> as usual.
+  textValue: string | undefined;
   handlers: Readonly<ComponentHandlers>;
 };
 

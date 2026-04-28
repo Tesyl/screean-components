@@ -39,6 +39,10 @@ export { button, type ButtonOpts } from './factories/button';
 export { card, type CardOpts } from './factories/card';
 export { toggle, type ToggleOpts } from './factories/toggle';
 export { slider, type SliderOpts } from './factories/slider';
+export { checkbox, type CheckboxOpts } from './factories/checkbox';
+export { radio, type RadioOpts } from './factories/radio';
+export { image, type ImageOpts, type ImageSource } from './factories/image';
+export { textField, type TextFieldOpts } from './factories/textField';
 
 // ─── dom (mirror + dom-flavored choreography) ──────────────────────────────
 export {

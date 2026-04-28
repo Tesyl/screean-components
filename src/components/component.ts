@@ -51,6 +51,7 @@ export const component = (
     onPointerLeave: opts.onPointerLeave,
     onPointerDown: opts.onPointerDown,
     onPointerUp: opts.onPointerUp,
+    onInput: opts.onInput,
   });
   const internals: ComponentInternals = Object.freeze({
     id,
@@ -67,6 +68,7 @@ export const component = (
     value: opts.value,
     min: opts.min,
     max: opts.max,
+    textValue: opts.textValue,
     handlers,
   });
   (node as Component)._component = internals;

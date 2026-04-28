@@ -58,6 +58,13 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     topics: ['WebGPU', 'compute shader', 'WGSL', 'instanced rendering'],
     load: () => import('./flowfieldGpu'),
   },
+  {
+    name: 'controls',
+    title: 'controls — every factory, controlled-input',
+    blurb: 'The full v1 component library wired with the controlled-input pattern. textField creates a real <input> via the DOM mirror; checkbox / radio / image / button / card / label all live in one form. Stable IDs across rebuilds preserve cursor + element identity.',
+    topics: ['component library', 'DOM mirror', 'controlled input', 'form'],
+    load: () => import('./controls'),
+  },
 ];
 
 export const findExperiment = (name: string): Experiment | undefined =>

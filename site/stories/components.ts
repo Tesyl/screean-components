@@ -306,5 +306,158 @@ export const componentsGroup = (themeId: ThemeId): TileGroup => ({
         });
       },
     },
+
+    // ---- Checkbox -----------------------------------------------------
+    // Boolean state, square chrome. Click flips checked. The check mark
+    // is a smaller filled square inside the chrome; rasterized + reformed
+    // it carries the state change visually.
+    {
+      name: 'checkbox · reel',
+      blurb: 'Boolean state, square chrome. Click flips. The mark dissolves with the rest of the cell — particles carry the state transition.',
+      code: `componentReel({ canvas, w, h, themeId,
+  buildElement: () => buildCheckbox(checked, tokens),
+  onElementClick: () => { checked = !checked; rebuild(); },
+});`,
+      mount: (c, w, h) => {
+        let checked = false;
+        const tokens = THEMES[themeId].tokens;
+        const size = Math.round(Math.min(w, h) * 0.32);
+        const inset = Math.max(4, Math.round(size * 0.22));
+
+        return componentReel({
+          canvas: c, w, h, themeId,
+          particleCount: 900,
+          kick: 480,
+          buildElement: () => {
+            const box = document.createElement('div');
+            Object.assign(box.style, {
+              width: `${size}px`,
+              height: `${size}px`,
+              background: tokens.subtle,
+              border: `1.5px solid ${tokens.border}`,
+              borderRadius: '4px',
+              position: 'relative',
+              cursor: 'pointer',
+              boxSizing: 'border-box',
+              transition: 'background 0.18s ease',
+            });
+            if (checked) {
+              const mark = document.createElement('div');
+              Object.assign(mark.style, {
+                position: 'absolute',
+                inset: `${inset}px`,
+                background: tokens.accent,
+                borderRadius: '2px',
+              });
+              box.appendChild(mark);
+            }
+            return { element: box, width: size, height: size };
+          },
+          onElementClick: () => { checked = !checked; },
+        });
+      },
+    },
+
+    // ---- Radio --------------------------------------------------------
+    // Single radio button. Demonstrates the visual primitive; group
+    // semantics (one-selected-at-a-time) are a parent concern and not
+    // shown in a single-tile demo.
+    {
+      name: 'radio · reel',
+      blurb: 'Circular ring with an inner dot when selected. Click toggles the dot. The reform cycle carries the state visually.',
+      code: `componentReel({ canvas, w, h, themeId,
+  buildElement: () => buildRadio(checked, tokens),
+  onElementClick: () => { checked = !checked; rebuild(); },
+});`,
+      mount: (c, w, h) => {
+        let checked = false;
+        const tokens = THEMES[themeId].tokens;
+        const size = Math.round(Math.min(w, h) * 0.32);
+        const dotSize = Math.round(size * 0.42);
+
+        return componentReel({
+          canvas: c, w, h, themeId,
+          particleCount: 900,
+          kick: 480,
+          buildElement: () => {
+            const ring = document.createElement('div');
+            Object.assign(ring.style, {
+              width: `${size}px`,
+              height: `${size}px`,
+              background: tokens.subtle,
+              border: `1.5px solid ${tokens.border}`,
+              borderRadius: '50%',
+              position: 'relative',
+              cursor: 'pointer',
+              boxSizing: 'border-box',
+            });
+            if (checked) {
+              const dot = document.createElement('div');
+              Object.assign(dot.style, {
+                position: 'absolute',
+                left: `${(size - dotSize) / 2}px`,
+                top: `${(size - dotSize) / 2}px`,
+                width: `${dotSize}px`,
+                height: `${dotSize}px`,
+                background: tokens.accent,
+                borderRadius: '50%',
+              });
+              ring.appendChild(dot);
+            }
+            return { element: ring, width: size, height: size };
+          },
+          onElementClick: () => { checked = !checked; },
+        });
+      },
+    },
+
+    // ---- TextField ----------------------------------------------------
+    // Text input chrome rendered as particles. Click cycles through
+    // preset values so the dissolve has visible content change to carry.
+    // The library's actual textField component creates a real <input>
+    // via the DOM mirror — see /experiments for that path.
+    {
+      name: 'textfield · reel',
+      blurb: 'Input chrome dissolved as particles. Click cycles through preset values; dissolve carries the new text into shape.',
+      code: `componentReel({ canvas, w, h, themeId,
+  buildElement: () => buildTextField(value, tokens),
+  onElementClick: () => { value = NEXT[value]; rebuild(); },
+});`,
+      mount: (c, w, h) => {
+        const VALUES = ['the6ix', 'matter', 'collective', 'particles'] as const;
+        let idx = 0;
+        const tokens = THEMES[themeId].tokens;
+        const elW = Math.round(w * 0.62);
+        const elH = Math.round(h * 0.22);
+
+        return componentReel({
+          canvas: c, w, h, themeId,
+          particleCount: 1200,
+          kick: 440,
+          buildElement: () => {
+            const wrap = document.createElement('div');
+            Object.assign(wrap.style, {
+              width: `${elW}px`,
+              height: `${elH}px`,
+              background: tokens.subtle,
+              border: `1.5px solid ${tokens.border}`,
+              borderRadius: '8px',
+              boxSizing: 'border-box',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 14px',
+              fontFamily: MONO_STACK,
+              fontSize: `${Math.round(elH * 0.5)}px`,
+              color: tokens.fg,
+              cursor: 'pointer',
+              letterSpacing: '0.06em',
+            });
+            wrap.textContent = VALUES[idx];
+            return { element: wrap, width: elW, height: elH };
+          },
+          onElementClick: () => { idx = (idx + 1) % VALUES.length; },
+        });
+      },
+    },
   ],
 });

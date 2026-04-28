@@ -88,7 +88,11 @@ const effectiveRole = (c: Component): AriaRole => {
 };
 
 type MirrorEntry = {
-  div: HTMLDivElement;
+  // Either a <div> (most components) or an <input> (role=textbox). Both
+  // are HTMLElements, so common code paths (style, role, aria, position)
+  // work uniformly via this type. Type narrows at the few places that
+  // need element-specific behavior (input.value, textContent on div).
+  el: HTMLElement;
   // Last values written. We only touch the DOM when these change.
   lastX: number;
   lastY: number;
@@ -101,30 +105,42 @@ type MirrorEntry = {
   lastValue: number | undefined;
   lastMin: number | undefined;
   lastMax: number | undefined;
+  lastTextValue: string | undefined;
   // Listener handles so dispose() can detach them. Closure captures the
   // component by reference; handler-lookup is deferred to event time so
   // swapping handler identities Just Works (though our components freeze
   // handlers, a consumer with a custom factory might not).
   onClick: ((e: MouseEvent) => void) | null;
   onKey: ((e: KeyboardEvent) => void) | null;
+  onInput: ((e: Event) => void) | null;
 };
 
 const disposeEntry = (entry: MirrorEntry): void => {
-  if (entry.onClick) entry.div.removeEventListener('click', entry.onClick);
-  if (entry.onKey) entry.div.removeEventListener('keydown', entry.onKey);
-  entry.div.remove();
+  if (entry.onClick) entry.el.removeEventListener('click', entry.onClick);
+  if (entry.onKey) entry.el.removeEventListener('keydown', entry.onKey);
+  if (entry.onInput) entry.el.removeEventListener('input', entry.onInput);
+  entry.el.remove();
 };
 
 // Build a mirror div for a newly-seen component. Attaches event listeners
 // when the component is interactive, sets ARIA attributes, and returns the
 // tracking entry. The div is NOT appended here — the reconciler does that.
 const createEntry = (c: Component): MirrorEntry => {
-  const div = document.createElement('div');
   const i = c._component;
   const role = effectiveRole(c);
-  const interactive = hasInteractiveHandler(i.handlers);
+  // Textbox role gets a real <input> so the browser owns cursor, selection,
+  // IME, and copy/paste. Everything else is a <div> as before.
+  const isTextbox = role === 'textbox';
+  const el: HTMLElement = isTextbox
+    ? Object.assign(document.createElement('input'), { type: 'text' })
+    : document.createElement('div');
+  // After this point the rest of the function treats `el` uniformly via
+  // its HTMLElement surface. The few input-specific writes are gated on
+  // `isTextbox` and use a typed alias.
+  const input = isTextbox ? (el as HTMLInputElement) : null;
+  const interactive = isTextbox || hasInteractiveHandler(i.handlers);
 
-  div.dataset.componentId = i.id;
+  el.dataset.componentId = i.id;
   // Base styling. `transform` gets written by reconcile(); leaving it empty
   // here means unpositioned-at-first, but reconcile() always runs for new
   // entries before the next paint.
@@ -133,43 +149,48 @@ const createEntry = (c: Component): MirrorEntry => {
   // mirrors render visually. Inline styles beat external selectors, so
   // forcing `background: transparent` here would have locked out any
   // consumer-supplied accent colors.
-  div.style.cssText =
+  el.style.cssText =
     'position:absolute;top:0;left:0;will-change:transform;';
 
-  if (role !== 'none') div.setAttribute('role', role);
+  if (role !== 'none') el.setAttribute('role', role);
   if (i.ariaLabel !== undefined) {
-    div.setAttribute('aria-label', i.ariaLabel);
-    // Also render as visible text content so the DOM mirror is readable,
-    // not just a phantom rect over a particle cloud. Consumers who want
-    // particles-only (e.g. a demo that hides the DOM chrome entirely) can
-    // style `color: transparent` on `#screean-mirror > div`. The aria-label
-    // is still authoritative for screen readers per WAI-ARIA naming rules.
-    div.textContent = i.ariaLabel;
+    el.setAttribute('aria-label', i.ariaLabel);
+    // For non-input mirrors, also render as visible text content so the
+    // DOM mirror is readable. Inputs have a `.value` instead — they get
+    // their visible content from `i.textValue` below, not aria-label
+    // (which would conflict with the user's typed value).
+    if (!isTextbox) el.textContent = i.ariaLabel;
   }
 
+  // Initial textbox value.
+  if (input && i.textValue !== undefined) input.value = i.textValue;
+
   if (interactive) {
-    div.tabIndex = i.disabled ? -1 : 0;
-    div.style.pointerEvents = i.disabled ? 'none' : 'auto';
+    el.tabIndex = i.disabled ? -1 : 0;
+    el.style.pointerEvents = i.disabled ? 'none' : 'auto';
   } else {
-    div.style.pointerEvents = 'none';
+    el.style.pointerEvents = 'none';
   }
-  if (i.disabled) div.setAttribute('aria-disabled', 'true');
+  if (i.disabled) {
+    el.setAttribute('aria-disabled', 'true');
+    if (input) input.disabled = true;
+  }
   // Toggle-button / checkbox / radio state. Only emit the ARIA attribute
   // when the component actually uses that state axis — undefined means
   // "not a toggle," so we leave the attr off entirely.
   if (i.pressed !== undefined) {
-    div.setAttribute('aria-pressed', String(i.pressed));
+    el.setAttribute('aria-pressed', String(i.pressed));
   }
   if (i.checked !== undefined) {
-    div.setAttribute('aria-checked', String(i.checked));
+    el.setAttribute('aria-checked', String(i.checked));
   }
   // Slider value axis. Only emitted when the component participates;
   // undefined → leave attr off entirely. We don't default min/max to 0/100
   // because that's a UI convention, not an a11y one — let the consumer be
   // explicit when the axis matters.
-  if (i.value !== undefined) div.setAttribute('aria-valuenow', String(i.value));
-  if (i.min !== undefined) div.setAttribute('aria-valuemin', String(i.min));
-  if (i.max !== undefined) div.setAttribute('aria-valuemax', String(i.max));
+  if (i.value !== undefined) el.setAttribute('aria-valuenow', String(i.value));
+  if (i.min !== undefined) el.setAttribute('aria-valuemin', String(i.min));
+  if (i.max !== undefined) el.setAttribute('aria-valuemax', String(i.max));
   // Inline the CSS font shorthand so DOM text matches the particle text.
   // screean's `text()` field defaults to `bold 96px system-ui`; any consumer
   // CSS that disagrees produces a jarring size jump when particles reform.
@@ -181,12 +202,13 @@ const createEntry = (c: Component): MirrorEntry => {
   // rasterized rectangle's center — visible as particles landing slightly
   // above the final text. Collapsing to 1 aligns the two.
   if (i.font !== undefined) {
-    div.style.font = i.font;
-    div.style.lineHeight = '1';
+    el.style.font = i.font;
+    el.style.lineHeight = '1';
   }
 
   let onClick: MirrorEntry['onClick'] = null;
   let onKey: MirrorEntry['onKey'] = null;
+  let onInput: MirrorEntry['onInput'] = null;
 
   if (interactive) {
     onClick = () => {
@@ -215,20 +237,48 @@ const createEntry = (c: Component): MirrorEntry => {
       });
     };
     onKey = (e) => {
+      // Inputs handle Enter/Space natively (Space inserts a space, Enter
+      // submits a form). Don't intercept on textboxes.
+      if (isTextbox) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         // Synthesize a click through the same path as mouse — single
         // dispatch. Browser would otherwise send both native-click and our
         // synthetic; preventDefault keeps Space from scrolling.
-        div.click();
+        el.click();
       }
     };
-    div.addEventListener('click', onClick);
-    div.addEventListener('keydown', onKey);
+    el.addEventListener('click', onClick);
+    el.addEventListener('keydown', onKey);
+
+    if (input) {
+      // Continuous text-input event. Fires per keystroke, IME composition
+      // commit, and paste. The consumer gets the new value via e.value
+      // and rebuilds the component (controlled-input pattern).
+      onInput = () => {
+        const ci = c._component;
+        const h = ci.handlers.onInput;
+        if (!h || ci.disabled) return;
+        const b = componentWorldBounds(c);
+        const cx = b ? b.x + b.w / 2 : 0;
+        const cy = b ? b.y + b.h / 2 : 0;
+        h({
+          type: 'input',
+          x: cx,
+          y: cy,
+          world: [cx, cy],
+          screen: [0, 0],
+          local: [0, 0],
+          component: c,
+          value: input.value,
+        });
+      };
+      el.addEventListener('input', onInput);
+    }
   }
 
   return {
-    div,
+    el,
     lastX: NaN,
     lastY: NaN,
     lastW: NaN,
@@ -240,8 +290,10 @@ const createEntry = (c: Component): MirrorEntry => {
     lastValue: i.value,
     lastMin: i.min,
     lastMax: i.max,
+    lastTextValue: i.textValue,
     onClick,
     onKey,
+    onInput,
   };
 };
 
@@ -254,46 +306,59 @@ const syncAriaIfChanged = (entry: MirrorEntry, c: Component): void => {
   if (entry.lastDisabled !== i.disabled) {
     entry.lastDisabled = i.disabled;
     if (i.disabled) {
-      entry.div.setAttribute('aria-disabled', 'true');
-      entry.div.tabIndex = -1;
-      entry.div.style.pointerEvents = 'none';
+      entry.el.setAttribute('aria-disabled', 'true');
+      entry.el.tabIndex = -1;
+      entry.el.style.pointerEvents = 'none';
     } else {
-      entry.div.removeAttribute('aria-disabled');
+      entry.el.removeAttribute('aria-disabled');
       if (hasInteractiveHandler(i.handlers)) {
-        entry.div.tabIndex = 0;
-        entry.div.style.pointerEvents = 'auto';
+        entry.el.tabIndex = 0;
+        entry.el.style.pointerEvents = 'auto';
       }
     }
   }
   if (entry.lastPressed !== i.pressed) {
     entry.lastPressed = i.pressed;
-    if (i.pressed === undefined) entry.div.removeAttribute('aria-pressed');
-    else entry.div.setAttribute('aria-pressed', String(i.pressed));
+    if (i.pressed === undefined) entry.el.removeAttribute('aria-pressed');
+    else entry.el.setAttribute('aria-pressed', String(i.pressed));
   }
   if (entry.lastChecked !== i.checked) {
     entry.lastChecked = i.checked;
-    if (i.checked === undefined) entry.div.removeAttribute('aria-checked');
-    else entry.div.setAttribute('aria-checked', String(i.checked));
+    if (i.checked === undefined) entry.el.removeAttribute('aria-checked');
+    else entry.el.setAttribute('aria-checked', String(i.checked));
   }
   if (entry.lastFont !== i.font) {
     entry.lastFont = i.font;
-    entry.div.style.font = i.font ?? '';
-    entry.div.style.lineHeight = i.font !== undefined ? '1' : '';
+    entry.el.style.font = i.font ?? '';
+    entry.el.style.lineHeight = i.font !== undefined ? '1' : '';
   }
   if (entry.lastValue !== i.value) {
     entry.lastValue = i.value;
-    if (i.value === undefined) entry.div.removeAttribute('aria-valuenow');
-    else entry.div.setAttribute('aria-valuenow', String(i.value));
+    if (i.value === undefined) entry.el.removeAttribute('aria-valuenow');
+    else entry.el.setAttribute('aria-valuenow', String(i.value));
   }
   if (entry.lastMin !== i.min) {
     entry.lastMin = i.min;
-    if (i.min === undefined) entry.div.removeAttribute('aria-valuemin');
-    else entry.div.setAttribute('aria-valuemin', String(i.min));
+    if (i.min === undefined) entry.el.removeAttribute('aria-valuemin');
+    else entry.el.setAttribute('aria-valuemin', String(i.min));
   }
   if (entry.lastMax !== i.max) {
     entry.lastMax = i.max;
-    if (i.max === undefined) entry.div.removeAttribute('aria-valuemax');
-    else entry.div.setAttribute('aria-valuemax', String(i.max));
+    if (i.max === undefined) entry.el.removeAttribute('aria-valuemax');
+    else entry.el.setAttribute('aria-valuemax', String(i.max));
+  }
+  // Textbox value sync. We only push to `input.value` if the component's
+  // textValue has changed AND it differs from what's already in the input
+  // — this matters because the user might be typing right now, and
+  // overwriting `input.value` mid-keystroke loses cursor position. The
+  // diff-then-set pattern keeps the user's typing intact while still
+  // letting consumer-driven rebuilds (e.g. "clear button") update the
+  // displayed value.
+  if (entry.lastTextValue !== i.textValue) {
+    entry.lastTextValue = i.textValue;
+    if (entry.el instanceof HTMLInputElement && i.textValue !== undefined) {
+      if (entry.el.value !== i.textValue) entry.el.value = i.textValue;
+    }
   }
 };
 
@@ -342,7 +407,7 @@ export const createDomMirror = (opts: DomMirrorOpts): DomMirror => {
       let entry = entries.get(id);
       if (!entry) {
         entry = createEntry(c);
-        container.appendChild(entry.div);
+        container.appendChild(entry.el);
         entries.set(id, entry);
       }
 
@@ -356,13 +421,13 @@ export const createDomMirror = (opts: DomMirrorOpts): DomMirror => {
       const b = transformRect(local, worldXform);
 
       if (entry.lastX !== b.x || entry.lastY !== b.y) {
-        entry.div.style.transform = `translate3d(${b.x}px, ${b.y}px, 0)`;
+        entry.el.style.transform = `translate3d(${b.x}px, ${b.y}px, 0)`;
         entry.lastX = b.x;
         entry.lastY = b.y;
       }
       if (entry.lastW !== b.w || entry.lastH !== b.h) {
-        entry.div.style.width = `${b.w}px`;
-        entry.div.style.height = `${b.h}px`;
+        entry.el.style.width = `${b.w}px`;
+        entry.el.style.height = `${b.h}px`;
         entry.lastW = b.w;
         entry.lastH = b.h;
       }
