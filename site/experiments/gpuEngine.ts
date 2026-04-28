@@ -26,6 +26,7 @@ import {
   createWorld,
   createRendererAsync,
   WorldGPU,
+  detectBudgetFromNavigator,
   type IWorld,
   type Renderer,
   packRGBA,
@@ -171,6 +172,17 @@ export const mount = (root: HTMLElement): (() => void) => {
     pointCount: 0,
   };
 
+  // Per-device particle budget — clamps the user-facing slider AND the
+  // WorldGPU initial capacity so iPhone WKWebView (~2 GB ActiveHard
+  // ceiling) doesn't OOM at boot. The heuristic from M0.5 returns:
+  //   - iPhone:           50k–100k (memory-tiered, hard-capped at 100k)
+  //   - iPad:             ~200k
+  //   - desktop 4 GB:     500k
+  //   - desktop 8 GB+:    1M
+  // We never exceed 1M (the experiment's stated ceiling).
+  const HARD_CAP = 1_000_000;
+  const PARTICLE_CAP = Math.min(HARD_CAP, detectBudgetFromNavigator());
+
   let cursor = { x: W / 2, y: H / 2 };
   canvas.addEventListener('pointermove', (e) => {
     const r = canvas.getBoundingClientRect();
@@ -233,11 +245,12 @@ export const mount = (root: HTMLElement): (() => void) => {
       width: W,
       height: H,
       backend: 'auto',
-      // Allocate the full ceiling up front (32 MB on GPU @ 32 B/particle) so
-      // dragging the slider into the millions doesn't trigger geometric grows
-      // mid-render. WebGPU's maxStorageBufferBindingSize is typically 128 MB
-      // on desktop / 256 MB on Apple Silicon — comfortable headroom.
-      capacity: 1_000_000,
+      // Allocate the per-device cap up front so dragging the slider
+      // doesn't trigger geometric grows mid-render. Memory footprint is
+      // PARTICLE_CAP × 32 B per buffer:
+      //   iPhone (100k):  3.2 MB   ← well within the WKWebView ceiling
+      //   desktop (1M):   32 MB    ← <25% of typical 128 MB max-storage
+      capacity: PARTICLE_CAP,
       seed: 1,
       onFallback: (e) => console.warn('[gpu-engine] world fallback:', e.message),
     });
@@ -475,14 +488,14 @@ export const mount = (root: HTMLElement): (() => void) => {
   // ─── Knobs ─────────────────────────────────────────────────────────────
   const KNOBS: Knob[] = [
     {
-      // 1k–1M is a 1000× range. Linear slider with step=1000 means the
-      // lower-resolution end (e.g. dialing in 8k) needs care — drag slow
-      // for fine control. Bumping to 1M makes the readback cost dominate
-      // beyond ~100k (sync per frame is 32 MB at full cap); the visual
-      // still works but FPS drops. Future work: skip readback when the
-      // renderer can read WorldGPU's buffer directly.
-      label: 'particles', min: 1000, max: 1_000_000, step: 1000,
-      initial: DEFAULTS.particleCount,
+      // Slider tops out at PARTICLE_CAP — per-device, so iPhone caps at
+      // 100k, desktop typically at 1M. Step is 1k everywhere; with a 1000×
+      // range on desktop the lower end needs a slow drag for fine control.
+      // Readback cost (sync-per-frame from WorldGPU shadow → renderer)
+      // dominates above ~100k; visual still works, FPS drops. Future work:
+      // skip readback when the renderer reads WorldGPU's buffer directly.
+      label: 'particles', min: 1000, max: PARTICLE_CAP, step: 1000,
+      initial: Math.min(DEFAULTS.particleCount, PARTICLE_CAP),
       format: (v) => v.toLocaleString(),
       apply: (v) => rebuild(v | 0),
     },
