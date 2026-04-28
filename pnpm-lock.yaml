@@ -1003,6 +1003,12 @@ packages:
       jsdom:
         optional: true
 
+  webgpu-utils@2.1.0:
+    resolution: {integrity: sha512-B+HCvULew69AYnp0rboPBsT1t8PQcyyqv40GGdGZvz5zCF4ZUj0wFsnaXF875pm/clM7YWlnw9PxyS7NRqghGw==}
+
+  wgpu-matrix@3.4.2:
+    resolution: {integrity: sha512-IfZFbG7olEYBD76VCZy2TzqM57GKy3LT++AZh37tMHPPByO6R2h61zXGBZFNPi2IzxNivNi8y5dvze5PjaczjA==}
+
   whatwg-mimetype@3.0.0:
     resolution: {integrity: sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==}
     engines: {node: '>=12'}
@@ -1728,6 +1734,8 @@ snapshots:
   screean@file:../screean:
     dependencies:
       simplex-noise: 4.0.3
+      webgpu-utils: 2.1.0
+      wgpu-matrix: 3.4.2
 
   semver@6.3.1: {}
 
@@ -1830,6 +1838,10 @@ snapshots:
       - sugarss
       - supports-color
       - terser
+
+  webgpu-utils@2.1.0: {}
+
+  wgpu-matrix@3.4.2: {}
 
   whatwg-mimetype@3.0.0: {}
 

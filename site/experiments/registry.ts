@@ -65,6 +65,13 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     topics: ['component library', 'DOM mirror', 'controlled input', 'form'],
     load: () => import('./controls'),
   },
+  {
+    name: 'gpu-engine',
+    title: 'gpu-engine — createWorld + createRendererAsync',
+    blurb: "First end-to-end consumer of the engine's new GPU surface (P7b-II + P20). Both halves auto-select: createRendererAsync walks WebGPU → WebGL2 → Canvas2D; createWorld picks GPU compute when an adapter is available, falls back to CPU otherwise. Status pill shows resolved backends. Cursor pulls particles via point force.",
+    topics: ['createWorld', 'createRendererAsync', 'WebGPU', 'WorldGPU', 'auto-fallback'],
+    load: () => import('./gpuEngine'),
+  },
 ];
 
 export const findExperiment = (name: string): Experiment | undefined =>
