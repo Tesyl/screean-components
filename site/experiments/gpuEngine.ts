@@ -55,8 +55,8 @@ const DEFAULTS = {
   shimmerAmp: 4,
   shimmerFreq: 1.6,
   rotYspeed: 0.35,        // radians/sec — slow spin
-  scatterKick: 800,       // point-force burst magnitude on click
-  scatterMs: 220,         // duration of the negative-pointForce pulse
+  scatterKick: 1600,      // radial-impulse magnitude — punchy
+  scatterSoftness: 0.06,  // 1/d falloff — small = punchy near, gentle far
   cloudScale: 1.0,
   perspective: 580,
   modelRadius: 220,
@@ -156,7 +156,6 @@ export const mount = (root: HTMLElement): (() => void) => {
     drag: number;
     points: Float32Array;       // mesh-local 3D point cloud (n × 3)
     pointCount: number;
-    scatterUntil: number;       // ms timestamp when scatter pulse ends
   };
   const state: State = {
     rotY: 0,
@@ -170,7 +169,6 @@ export const mount = (root: HTMLElement): (() => void) => {
     drag: DEFAULTS.drag,
     points: new Float32Array(0),
     pointCount: 0,
-    scatterUntil: 0,
   };
 
   let cursor = { x: W / 2, y: H / 2 };
@@ -179,11 +177,30 @@ export const mount = (root: HTMLElement): (() => void) => {
     cursor.x = e.clientX - r.left;
     cursor.y = e.clientY - r.top;
   });
+  // Click → kick. Single-frame radial velocity impulse on every live
+  // particle, pushing them away from the cursor. The spring force pulls
+  // them back into the logo silhouette over the next ~second. Same shape
+  // on both backends — WorldGPU.applyRadialImpulse mirrors the CPU
+  // radialImpulse formula exactly.
   canvas.addEventListener('pointerdown', (e) => {
     const r = canvas.getBoundingClientRect();
     cursor.x = e.clientX - r.left;
     cursor.y = e.clientY - r.top;
-    state.scatterUntil = performance.now() + DEFAULTS.scatterMs;
+    if (!world) return;
+    if (world.backend === 'gpu') {
+      (world as WorldGPU).applyRadialImpulse({
+        origin: { x: cursor.x, y: cursor.y },
+        kick: DEFAULTS.scatterKick,
+        softness: DEFAULTS.scatterSoftness,
+      });
+    } else {
+      const cpu = world as IWorld & { particles: Particle[] };
+      radialImpulse(cpu.particles, {
+        origin: { x: cursor.x, y: cursor.y },
+        kick: DEFAULTS.scatterKick,
+        softness: DEFAULTS.scatterSoftness,
+      });
+    }
   });
 
   // ─── Async boot ────────────────────────────────────────────────────────
@@ -392,11 +409,11 @@ export const mount = (root: HTMLElement): (() => void) => {
       for (let i = 0; i < state.pointCount; i++) {
         gpu.queueTarget(i, targets[i * 2]!, targets[i * 2 + 1]!);
       }
-
-      // Cursor force: scatter pulse if active, otherwise mild attract.
-      const scatterActive = now < state.scatterUntil;
+      // Mild cursor attractor — pulls particles slightly toward the
+      // pointer. Real scatter is a click-fired velocity impulse handled
+      // by the pointerdown listener, not by this force.
       gpu.setForceConstants({
-        pointStrength: scatterActive ? -DEFAULTS.scatterKick : 60,
+        pointStrength: 60,
         pointX: cursor.x,
         pointY: cursor.y,
       });
@@ -405,16 +422,6 @@ export const mount = (root: HTMLElement): (() => void) => {
       for (let i = 0; i < state.pointCount && i < cpu.particles.length; i++) {
         cpu.particles[i]!.tx = targets[i * 2]!;
         cpu.particles[i]!.ty = targets[i * 2 + 1]!;
-      }
-      // Scatter via radialImpulse on the CPU branch — punchier than the
-      // pulse-pointForce trick and uses the engine's existing helper.
-      if (now < state.scatterUntil && now - last < 32) {
-        radialImpulse(cpu.particles, {
-          origin: { x: cursor.x, y: cursor.y },
-          kick: DEFAULTS.scatterKick * 0.5,
-          softness: 0.06,
-        });
-        state.scatterUntil = 0;
       }
     }
 
