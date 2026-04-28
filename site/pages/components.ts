@@ -24,6 +24,7 @@ import { forcesGroup } from '../stories/forces';
 import { presetsGroup } from '../stories/presets';
 import { choreographyGroup } from '../stories/choreography';
 import { componentsGroup } from '../stories/components';
+import { easingGroup } from '../stories/easing';
 import { typeGroup } from '../stories/type';
 import { TILE_W, TILE_H, type TileGroup, type TileSetup } from '../stories/types';
 import { mountScreeanNav, type ScreeanNavHandle } from '../lib/transitions/screeanNav';
@@ -67,6 +68,7 @@ export const renderComponents = (themeId: ThemeId = DEFAULT_THEME): (() => void)
     presetsGroup(themeId),
     typeGroup(themeId),
     choreographyGroup(themeId),
+    easingGroup(themeId),
   ];
 
   // Layout: sidebar + content pane.

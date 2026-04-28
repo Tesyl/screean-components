@@ -102,3 +102,40 @@ export const tileStage = (
     pointerStrength: 2400,
   });
 };
+
+// Drive a periodic effect that's also click-triggerable. The canvas's
+// click forces an immediate `effect()` AND resets the interval — so a
+// user who wants to see the next gesture without waiting can tap, and
+// the auto-loop resumes from that point.
+//
+// Returns a `dispose()` that clears the timer + removes the listener.
+// Intended to be wired into a TileSetup's `dispose` field so the page
+// teardown path picks it up.
+//
+// Why a helper: the choreography + composition + easing groups each
+// repeated this pattern with subtly different bookkeeping. Centralizing
+// it keeps the per-tile mount fns short and ensures teardown is
+// consistent (forgetting to remove the click listener leaks DOM nodes
+// across page leaves).
+export const runLoop = (
+  canvas: HTMLCanvasElement,
+  intervalMs: number,
+  effect: () => void,
+): (() => void) => {
+  let timer = setInterval(effect, intervalMs);
+  const onClick = (): void => {
+    clearInterval(timer);
+    effect();
+    timer = setInterval(effect, intervalMs);
+  };
+  canvas.addEventListener('click', onClick);
+  // Subtle visual affordance — cursor change tells the reader the tile is
+  // interactive without needing a separate hover state. We set it on the
+  // canvas itself; the surrounding card layout doesn't need to know.
+  canvas.style.cursor = 'pointer';
+  return (): void => {
+    clearInterval(timer);
+    canvas.removeEventListener('click', onClick);
+    canvas.style.cursor = '';
+  };
+};

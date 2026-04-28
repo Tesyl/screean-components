@@ -36,7 +36,7 @@ export const renderNav = (opts: NavOpts): HTMLElement => {
       <a href="/" data-route="/">Home</a>
       <a href="/components" data-route="/components">Components</a>
       <a href="/experiments" data-route="/experiments">Experiments</a>
-      <a href="/lab.html" data-external>Lab</a>
+      <a href="/lab" data-route="/lab">Lab</a>
       <a href="https://github.com/" data-external target="_blank" rel="noopener">GitHub</a>
     </div>
   `;

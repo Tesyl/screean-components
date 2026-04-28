@@ -91,6 +91,25 @@ This is what makes screen readers, keyboard focus, IME, copy/paste, and forced-c
 
 The site (in `site/`) consumes `screean` through the same package barrel any external consumer would (`import { node, circle, spawn } from 'screean'`). It does NOT reach into the engine's `src/`.
 
+## Easing curves for `dissolveAndReform`
+
+The return-to-target phase is parametric: each particle's start position is snapshotted at phase entry, then `start + (target - start) * easing(t)` each frame. Curves come from `screean`'s `easing` namespace.
+
+```ts
+import { easing } from 'screean';
+import { createDissolve } from '@screean/components';
+
+const dissolve = createDissolve({
+  // ...other opts
+  returnEasing: easing.outCubic,   // default — matches the previous "exponential approach" feel
+});
+
+// Per-trigger override:
+dissolve.trigger(button, { easing: easing.outBack });   // punchy overshoot
+```
+
+Available curves: `linear`, in/out/inOut variants of `quad` `cubic` `quart` `quint` `sine` `expo` `circ` `back`, plus `smoothstep`, `smootherstep`, `inBounce` `outBounce` `inOutBounce`, `inElastic` `outElastic` `inOutElastic`. Overshoot families (`back`, `elastic`, `bounce`) intentionally exit `[0, 1]` mid-curve — the final snap-to-target at phase end covers any residual offset. Pass any `(t: number) => number` for custom curves.
+
 ## Cross-platform deployment
 
 This package is designed to ship unchanged across three deployment targets:

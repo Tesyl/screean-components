@@ -13,6 +13,7 @@ import { applyTheme, DEFAULT_THEME } from './themes';
 import { renderLanding } from './pages/landing';
 import { renderComponents } from './pages/components';
 import { renderExperimentsIndex, renderExperiment } from './pages/experiments';
+import { renderLabIndex, renderLabStory } from './pages/lab';
 
 let teardown: (() => void) | null = null;
 // Generation counter — async experiment renders need to know whether
@@ -40,6 +41,14 @@ const render = async (r: Route): Promise<void> => {
   }
   if (r.kind === 'experiments') {
     teardown = renderExperimentsIndex();
+    return;
+  }
+  if (r.kind === 'lab') {
+    teardown = renderLabIndex();
+    return;
+  }
+  if (r.kind === 'lab-story') {
+    teardown = renderLabStory(r.name);
     return;
   }
   // r.kind === 'experiment' — lazy-load and mount.

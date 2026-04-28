@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { __resetNodeIds, node, rect, scene, stack } from 'screean';
+import { __resetNodeIds, easing, node, rect, scene, stack } from 'screean';
 import type { Particle, Scene } from 'screean';
 import {
   installOffscreenCanvasStub,
@@ -229,7 +229,7 @@ describe('createDissolve — state machine', () => {
       particlePhaseMs: 100,
       returnMs: 100,
       fadeMs: 50,
-      returnLerpK: 0.5,
+      returnEasing: easing.linear,
     });
 
     d.trigger(fx.btn, 0);
@@ -294,6 +294,132 @@ describe('createDissolve — re-entrancy', () => {
     // particles on the fresh cycle.
     d.tick(250);   // elapsed 90 < 100, still in particles
     expect(fx.mirrorDiv.style.opacity).toBe('0');
+    vi.useRealTimers();
+    fx.cleanup();
+  });
+});
+
+describe('createDissolve — easing', () => {
+  // With `easing.linear`, the eased lerp is mathematically trivial:
+  // p.x = startX + (tx - startX) * t. We can compute expected positions
+  // exactly and compare. This isolates the easing call site without
+  // depending on outCubic's specific shape.
+  it('linear easing produces exactly proportional progress', () => {
+    vi.useFakeTimers();
+    const fx = makeFixture();
+    const d = createDissolve({
+      scene: fx.s, particles: fx.particles, mirrorHost: fx.host,
+      onReveal: () => {}, onHide: () => {},
+      particlePhaseMs: 100,
+      returnMs: 1000,  // long return so we can sample mid-curve
+      fadeMs: 50,
+      returnEasing: easing.linear,
+    });
+
+    d.trigger(fx.btn, 0);
+    // Stash particle positions just before returning phase begins.
+    d.tick(101);   // particles → returning (snapshots starts at since=101)
+    const startsX = fx.btnIndices.map((i) => fx.particles[i].x);
+    const startsY = fx.btnIndices.map((i) => fx.particles[i].y);
+
+    // Halfway through the return phase: t=0.5, so x should be
+    // start + (tx - start) * 0.5 = midpoint between start and target.
+    d.tick(101 + 500);
+    fx.btnIndices.forEach((i, k) => {
+      const p = fx.particles[i];
+      expect(p.x).toBeCloseTo(startsX[k] + (p.tx - startsX[k]) * 0.5, 4);
+      expect(p.y).toBeCloseTo(startsY[k] + (p.ty - startsY[k]) * 0.5, 4);
+    });
+    vi.useRealTimers();
+    fx.cleanup();
+  });
+
+  it('per-trigger easing override wins over instance default', () => {
+    vi.useFakeTimers();
+    const fx = makeFixture();
+    // Instance default is outCubic (nonzero progress at t=0.5),
+    // but we override with a curve that always returns 0.
+    const d = createDissolve({
+      scene: fx.s, particles: fx.particles, mirrorHost: fx.host,
+      onReveal: () => {}, onHide: () => {},
+      particlePhaseMs: 100,
+      returnMs: 1000,
+      fadeMs: 50,
+      returnEasing: easing.outCubic,
+    });
+
+    d.trigger(fx.btn, { now: 0, easing: () => 0 });
+    d.tick(101);  // → returning, snapshot starts
+    const startsX = fx.btnIndices.map((i) => fx.particles[i].x);
+
+    d.tick(101 + 500);  // halfway through phase
+    // With easing(t) === 0, no progress should have been made toward target.
+    fx.btnIndices.forEach((i, k) => {
+      expect(fx.particles[i].x).toBeCloseTo(startsX[k], 4);
+    });
+    vi.useRealTimers();
+    fx.cleanup();
+  });
+
+  it('overshoot easing still anchors to target via end-of-phase snap', () => {
+    vi.useFakeTimers();
+    const fx = makeFixture();
+    const d = createDissolve({
+      scene: fx.s, particles: fx.particles, mirrorHost: fx.host,
+      onReveal: () => {}, onHide: () => {},
+      particlePhaseMs: 100,
+      returnMs: 100,
+      fadeMs: 50,
+      returnEasing: easing.outBack,  // overshoots ~10% above 1 mid-curve
+    });
+
+    d.trigger(fx.btn, 0);
+    d.tick(150);   // → returning
+    d.tick(260);   // elapsed >= returnMs → snap + reforming
+
+    // After the snap, every particle is exactly at its target despite
+    // overshoot mid-curve.
+    for (const i of fx.btnIndices) {
+      expect(fx.particles[i].x).toBe(fx.particles[i].tx);
+      expect(fx.particles[i].y).toBe(fx.particles[i].ty);
+    }
+    vi.useRealTimers();
+    fx.cleanup();
+  });
+
+  it('start positions are captured once and reused across frames', () => {
+    // With linear easing, position at any t is `start + (target - start) * t`.
+    // If `start` were re-captured each frame (a regression to the old
+    // per-frame approach model), each new frame would treat the previous
+    // frame's *result* as the start, and the lerp would compound differently.
+    // We assert the math is the parametric form — proving start is stable.
+    vi.useFakeTimers();
+    const fx = makeFixture();
+    const d = createDissolve({
+      scene: fx.s, particles: fx.particles, mirrorHost: fx.host,
+      onReveal: () => {}, onHide: () => {},
+      particlePhaseMs: 50,
+      returnMs: 200,
+      fadeMs: 50,
+      returnEasing: easing.linear,
+    });
+
+    d.trigger(fx.btn, 0);
+    d.tick(60);   // particles → returning, capture starts at since=60
+    const startsX = fx.btnIndices.map((i) => fx.particles[i].x);
+    const startsY = fx.btnIndices.map((i) => fx.particles[i].y);
+
+    // Sample at multiple t values; each must use the same (captured) start.
+    for (const elapsedAfterPhase of [40, 100, 160]) {
+      d.tick(60 + elapsedAfterPhase);
+      const t = elapsedAfterPhase / 200;
+      fx.btnIndices.forEach((i, k) => {
+        const p = fx.particles[i];
+        // If starts were re-captured each frame, this formula wouldn't hold.
+        expect(p.x).toBeCloseTo(startsX[k] + (p.tx - startsX[k]) * t, 4);
+        expect(p.y).toBeCloseTo(startsY[k] + (p.ty - startsY[k]) * t, 4);
+      });
+    }
     vi.useRealTimers();
     fx.cleanup();
   });

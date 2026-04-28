@@ -20,17 +20,25 @@ export type Route =
   | { kind: 'landing'; theme: ThemeId }
   | { kind: 'components' }
   | { kind: 'experiments' }
-  | { kind: 'experiment'; name: string };
+  | { kind: 'experiment'; name: string }
+  | { kind: 'lab' }
+  | { kind: 'lab-story'; name: string };
 
 export const resolveRoute = (pathname: string): Route => {
   const clean = pathname.replace(/\/+$/, '') || '/';
   if (clean === '/components') return { kind: 'components' };
   if (clean === '/experiments') return { kind: 'experiments' };
+  if (clean === '/lab') return { kind: 'lab' };
   // /experiments/<name> — the name segment is whatever follows the slash.
   // We accept any non-empty path safe character; the experiment registry is
   // the authority on which names actually mount.
   const expMatch = clean.match(/^\/experiments\/([a-z0-9-]+)$/i);
   if (expMatch) return { kind: 'experiment', name: expMatch[1] };
+  // /lab/<storyName> — same shape as experiments. The lab registry decides
+  // which names are valid; unknown names land on a 404-ish page inside the
+  // lab shell rather than a hard router miss.
+  const labMatch = clean.match(/^\/lab\/([a-z0-9-]+)$/i);
+  if (labMatch) return { kind: 'lab-story', name: labMatch[1] };
   // Legacy / canonical landing.
   return { kind: 'landing', theme: DEFAULT_THEME };
 };

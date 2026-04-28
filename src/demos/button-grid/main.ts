@@ -15,7 +15,7 @@
 //   interactive role emission) in a way the 3-button demo doesn't.
 
 import {
-  World, camera, column, createRenderer, drag, neighborRepel,
+  World, camera, column, createRenderer, drag, easing, neighborRepel,
   packRGBA, pointForce, pointerSensor, row, scene, shimmer, spawn,
   spring, TRANSPARENT, type Color, type SceneNode,
 } from 'screean';
@@ -216,7 +216,7 @@ const dissolve = createDissolve({
   particlePhaseMs: 1200,
   returnMs: 300,
   fadeMs: 220,
-  returnLerpK: 0.25,
+  returnEasing: easing.outCubic,
   burstKick: 420,
   burstSoftness: 0.12,
 });

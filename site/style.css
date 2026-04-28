@@ -1711,3 +1711,202 @@ html { scroll-behavior: smooth; scroll-padding-top: 64px; }
   .spec-cell:nth-child(2n) { border-right: 0; }
   .spec-cell { border-bottom: var(--hairline) solid var(--border); }
 }
+
+/* ============================================================
+   LAB — sidebar + tabbed controls panel
+   Layout: sidebar (left) + main column (right) with canvas
+   stage on top and tabbed controls panel below.
+   ============================================================ */
+
+.lab-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 24px;
+  padding: 24px 32px 48px 32px;
+  max-width: 1600px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+.lab-sidebar {
+  position: sticky;
+  top: 24px;
+  padding: 14px 0;
+  display: flex;
+  flex-direction: column;
+}
+.lab-sidebar-head {
+  padding: 4px 18px 10px 18px;
+  border-bottom: var(--hairline) solid var(--border);
+  margin-bottom: 8px;
+}
+.lab-sidebar-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.lab-stories {
+  display: flex;
+  flex-direction: column;
+}
+.lab-story-link {
+  display: block;
+  padding: 9px 18px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.lab-story-link:hover { background: var(--subtle); }
+.lab-story-link.active {
+  background: var(--subtle);
+  border-left-color: var(--accent);
+  color: var(--fg);
+}
+
+.lab-main {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.lab-doc-head {
+  padding: 0 0 4px 0;
+}
+.lab-doc-head h1 {
+  margin: 6px 0 4px 0;
+  font-size: 28px;
+  font-weight: 500;
+}
+.lab-doc-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Stage — the live component view. Canvas + invisible mirror host overlay. */
+.lab-stage {
+  position: relative;
+  height: 420px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lab-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+}
+.lab-mirror-host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Controls panel — tabbed bottom section. */
+.lab-controls {
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+}
+.lab-tabs {
+  display: flex;
+  border-bottom: var(--hairline) solid var(--border);
+  padding: 0 8px;
+}
+.lab-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.lab-tab:hover { color: var(--fg); }
+.lab-tab.active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+.lab-tab-panels {
+  padding: 18px 22px 22px 22px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px 28px;
+}
+.lab-tab-panel {
+  display: none;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  gap: 14px 28px;
+}
+.lab-tab-panel.active { display: grid; }
+
+/* Code tab — full width inside the panel. */
+.lab-tab-panel[data-panel="code"] {
+  grid-template-columns: 1fr;
+}
+.lab-code {
+  margin: 0;
+  padding: 14px 18px;
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--fg);
+  white-space: pre;
+}
+.lab-coming-soon {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Knob variants beyond the slider (boolean, text, enum). Slider styles
+   are inherited from .pg-knob* in the playground section above. */
+.pg-knob-text,
+.pg-knob-select {
+  width: 100%;
+  background: var(--surface);
+  border: var(--hairline) solid var(--border);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+}
+.pg-knob-text:focus,
+.pg-knob-select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.pg-knob-bool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.pg-knob-bool input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}

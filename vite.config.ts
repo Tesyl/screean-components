@@ -19,7 +19,8 @@ const spaFallback = (): Plugin => ({
       const pathname = q >= 0 ? url.slice(0, q) : url;
       if (
         /^\/components\/?$/.test(pathname) ||
-        /^\/experiments(?:\/[a-z0-9-]+)?\/?$/i.test(pathname)
+        /^\/experiments(?:\/[a-z0-9-]+)?\/?$/i.test(pathname) ||
+        /^\/lab(?:\/[a-z0-9-]+)?\/?$/i.test(pathname)
       ) {
         req.url = '/index.html' + (q >= 0 ? url.slice(q) : '');
       }
@@ -34,7 +35,8 @@ const spaFallback = (): Plugin => ({
       const pathname = q >= 0 ? url.slice(0, q) : url;
       if (
         /^\/components\/?$/.test(pathname) ||
-        /^\/experiments(?:\/[a-z0-9-]+)?\/?$/i.test(pathname)
+        /^\/experiments(?:\/[a-z0-9-]+)?\/?$/i.test(pathname) ||
+        /^\/lab(?:\/[a-z0-9-]+)?\/?$/i.test(pathname)
       ) {
         req.url = '/index.html' + (q >= 0 ? url.slice(q) : '');
       }
@@ -77,5 +79,16 @@ export default defineConfig({
   },
   server: {
     port: 3100,
+    // Bind to all interfaces (not just localhost) so devices on the same
+    // LAN — phones, iOS Simulator running outside the host network namespace,
+    // physical iPhones plugged in via USB — can reach the dev server.
+    // In Vite output you'll now see a "Network: http://<lan-ip>:3100/" line
+    // alongside the local URL.
+    host: true,
+    // Allow any Host header. Vite's default allow-list rejects unknown
+    // hostnames (e.g. tunneled HTTPS URLs from cloudflared / ngrok),
+    // which we need for testing WebGPU on devices that require a secure
+    // context. `true` = allow-all, fine for local dev.
+    allowedHosts: true,
   },
 });

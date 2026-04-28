@@ -101,6 +101,8 @@ export const compositionGroup = (themeId: ThemeId): TileGroup => ({
         // reel) and the reel covers steps 1..4 from B onward.
         stage.setScene(() => node(A));
 
+        const STEP_COUNT = 5;
+        let currentIdx = 1; // matches startAt below
         const reel = new Reel({
           steps: [
             { label: 'A',     hint: 'left disc',          ms: 1500, enter: () => stage.setScene(() => node(A)) },
@@ -114,10 +116,29 @@ export const compositionGroup = (themeId: ThemeId): TileGroup => ({
           // Skip step 0 (already set above) on first play so the reel
           // starts with the visible transition A → B rather than A → A.
           startAt: 1,
+          // Track the current step index so click-advance below knows
+          // where it's jumping to. Reel's `onStep` arg order is (idx, step).
+          onStep: (idx) => { currentIdx = idx; },
         });
         reel.play();
 
-        return { stage, dispose: () => reel.dispose() };
+        // Click to skip to the next operator. The reel keeps playing
+        // from the new index — same auto-loop behavior, just nudged.
+        c.style.cursor = 'pointer';
+        const onClick = (): void => {
+          currentIdx = (currentIdx + 1) % STEP_COUNT;
+          reel.scrub(currentIdx);
+        };
+        c.addEventListener('click', onClick);
+
+        return {
+          stage,
+          dispose: () => {
+            c.removeEventListener('click', onClick);
+            c.style.cursor = '';
+            reel.dispose();
+          },
+        };
       },
     },
   ],
