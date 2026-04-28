@@ -233,7 +233,11 @@ export const mount = (root: HTMLElement): (() => void) => {
       width: W,
       height: H,
       backend: 'auto',
-      capacity: DEFAULTS.particleCount * 2,  // headroom for live count changes
+      // Allocate the full ceiling up front (32 MB on GPU @ 32 B/particle) so
+      // dragging the slider into the millions doesn't trigger geometric grows
+      // mid-render. WebGPU's maxStorageBufferBindingSize is typically 128 MB
+      // on desktop / 256 MB on Apple Silicon — comfortable headroom.
+      capacity: 1_000_000,
       seed: 1,
       onFallback: (e) => console.warn('[gpu-engine] world fallback:', e.message),
     });
@@ -471,7 +475,13 @@ export const mount = (root: HTMLElement): (() => void) => {
   // ─── Knobs ─────────────────────────────────────────────────────────────
   const KNOBS: Knob[] = [
     {
-      label: 'particles', min: 1000, max: 16000, step: 500,
+      // 1k–1M is a 1000× range. Linear slider with step=1000 means the
+      // lower-resolution end (e.g. dialing in 8k) needs care — drag slow
+      // for fine control. Bumping to 1M makes the readback cost dominate
+      // beyond ~100k (sync per frame is 32 MB at full cap); the visual
+      // still works but FPS drops. Future work: skip readback when the
+      // renderer can read WorldGPU's buffer directly.
+      label: 'particles', min: 1000, max: 1_000_000, step: 1000,
       initial: DEFAULTS.particleCount,
       format: (v) => v.toLocaleString(),
       apply: (v) => rebuild(v | 0),
