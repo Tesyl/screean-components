@@ -421,9 +421,10 @@ export const mount = (root: HTMLElement): (() => void) => {
     // Push targets into the world.
     if (world!.backend === 'gpu') {
       const gpu = world as WorldGPU;
-      for (let i = 0; i < state.pointCount; i++) {
-        gpu.queueTarget(i, targets[i * 2]!, targets[i * 2 + 1]!);
-      }
+      // Bulk-update targets via the GPU-side aux-buffer + copy-kernel
+      // path. Avoids the (lo, hi) dirty-span corruption that per-particle
+      // queueTarget would hit when the CPU shadow drifts from the GPU.
+      gpu.setAllTargets(targets);
       // Mild cursor attractor — pulls particles slightly toward the
       // pointer. Real scatter is a click-fired velocity impulse handled
       // by the pointerdown listener, not by this force.
