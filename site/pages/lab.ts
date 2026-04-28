@@ -12,6 +12,19 @@
 
 import { renderNav, renderFooter } from '../layout';
 import { mountLabStory, type LabHandle } from '../lab/mount';
+
+// Inline SVG icons for the kick-mode toggle. Stored as constants so the
+// template literal in the layout HTML can interpolate them. Pointer icon
+// = default state (clicks behave normally — interactive components
+// receive them, empty canvas does nothing). Hammer icon = active state
+// (clicks anywhere on the canvas fire a radial impulse).
+const POINTER_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M5 3l3.5 16 2.7-6.3L18 11.5z"/>
+</svg>`;
+const HAMMER_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M14 4l6 6-3 3-6-6z"/>
+  <path d="M11 7L3.5 14.5a2.12 2.12 0 003 3L14 10"/>
+</svg>`;
 import {
   DEFAULT_CHOREO_STATE,
   DEFAULT_FORCE_STATE,
@@ -22,6 +35,14 @@ import {
   type PropDef,
 } from '../lab/types';
 import { STORIES, findStory } from '../lab/registry';
+import { easing } from 'screean';
+// prism for the Code tab. The TypeScript grammar is the closest match to
+// our snippets (the actual code IS TS). Imports are side-effecty — the
+// grammar registers itself onto the Prism global, the theme CSS injects
+// styles for `.token.*` classes that highlightElement assigns.
+import Prism from 'prismjs';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/themes/prism-tomorrow.css';
 
 // ─── Persistent panel state ─────────────────────────────────────────────────
 // Module-scoped so navigation between stories doesn't lose tuning. Reset
@@ -70,14 +91,26 @@ export const renderLabStory = (name: string): (() => void) => {
   }
 
   // ─── Layout shell ────────────────────────────────────────────────────────
+  // Workhorse layout: fullscreen canvas + floating glass overlays. Sidebar
+  // (story nav + current story label) anchors top-left; controls panel
+  // (tabs + knobs) anchors right side, full height. Kick-toggle floats
+  // top-right of canvas. No doc-head, no footer — the canvas is the work
+  // surface and shouldn't compete for vertical real estate.
   const layout = document.createElement('section');
   layout.className = 'lab-layout';
   layout.innerHTML = `
-    <aside class="lab-sidebar surface-card" aria-label="Stories">
+    <div class="lab-stage">
+      <canvas class="lab-canvas" aria-hidden="true"></canvas>
+      <div class="lab-mirror-host" data-role="lab-mirror-host"></div>
+    </div>
+
+    <aside class="lab-sidebar lab-overlay" aria-label="Stories">
       <header class="lab-sidebar-head">
-        <span class="lab-sidebar-eyebrow">STORIES</span>
+        <span class="lab-sidebar-eyebrow">LAB</span>
+        <h1 class="lab-sidebar-title">${story.title}</h1>
+        <p class="lab-sidebar-blurb">${story.blurb}</p>
       </header>
-      <nav class="lab-stories">
+      <nav class="lab-stories" aria-label="Story list">
         ${STORIES
           .map(
             (s) => `<a href="/lab/${s.name}" data-lab-story="${s.name}" class="lab-story-link${s.name === name ? ' active' : ''}">${s.title}</a>`,
@@ -85,47 +118,47 @@ export const renderLabStory = (name: string): (() => void) => {
           .join('')}
       </nav>
     </aside>
-    <main class="lab-main">
-      <header class="lab-doc-head">
-        <span class="doc-eyebrow">LAB</span>
-        <h1>${story.title}</h1>
-        <p>${story.blurb}</p>
-      </header>
-      <div class="lab-stage surface-card">
-        <canvas class="lab-canvas" aria-hidden="true"></canvas>
-        <div class="lab-mirror-host" data-role="lab-mirror-host"></div>
+
+    <button class="lab-kick-toggle lab-overlay" type="button"
+      data-role="kick-toggle"
+      aria-pressed="false"
+      aria-label="Toggle kick mode (click empty canvas to scatter particles)"
+      title="Click empty canvas to scatter (off — clicks behave normally)">
+      ${POINTER_ICON_SVG}
+    </button>
+
+    <section class="lab-controls lab-overlay">
+      <div class="lab-tabs" role="tablist">
+        <button class="lab-tab active" role="tab" data-tab="props">Props</button>
+        <button class="lab-tab" role="tab" data-tab="forces">Forces</button>
+        <button class="lab-tab" role="tab" data-tab="choreo">Choreo</button>
+        <button class="lab-tab" role="tab" data-tab="globals">Globals</button>
+        <button class="lab-tab" role="tab" data-tab="code">Code</button>
       </div>
-      <section class="lab-controls surface-card">
-        <div class="lab-tabs" role="tablist">
-          <button class="lab-tab active" role="tab" data-tab="props">Props</button>
-          <button class="lab-tab" role="tab" data-tab="forces">Forces</button>
-          <button class="lab-tab" role="tab" data-tab="choreo">Choreography</button>
-          <button class="lab-tab" role="tab" data-tab="globals">Globals</button>
-          <button class="lab-tab" role="tab" data-tab="code">Code</button>
+      <div class="lab-tab-panels">
+        <div class="lab-tab-panel active" data-panel="props"></div>
+        <div class="lab-tab-panel" data-panel="forces"></div>
+        <div class="lab-tab-panel" data-panel="choreo"></div>
+        <div class="lab-tab-panel" data-panel="globals"></div>
+        <div class="lab-tab-panel" data-panel="code">
+          <pre class="lab-code"><code data-role="code"></code></pre>
         </div>
-        <div class="lab-tab-panels">
-          <div class="lab-tab-panel active" data-panel="props"></div>
-          <div class="lab-tab-panel" data-panel="forces"></div>
-          <div class="lab-tab-panel" data-panel="choreo">
-            <p class="lab-coming-soon">Choreography knobs land in Pass B.</p>
-          </div>
-          <div class="lab-tab-panel" data-panel="globals"></div>
-          <div class="lab-tab-panel" data-panel="code">
-            <pre class="lab-code"><code data-role="code"></code></pre>
-          </div>
-        </div>
-      </section>
-    </main>
+      </div>
+    </section>
   `;
   root.appendChild(layout);
-  root.appendChild(renderFooter());
 
   const canvas = layout.querySelector<HTMLCanvasElement>('.lab-canvas')!;
   const mirrorHost = layout.querySelector<HTMLDivElement>('.lab-mirror-host')!;
+  const kickToggle = layout.querySelector<HTMLButtonElement>('[data-role="kick-toggle"]')!;
   const propsPanel = layout.querySelector<HTMLDivElement>('[data-panel="props"]')!;
   const forcesPanel = layout.querySelector<HTMLDivElement>('[data-panel="forces"]')!;
+  const choreoPanel = layout.querySelector<HTMLDivElement>('[data-panel="choreo"]')!;
   const globalsPanel = layout.querySelector<HTMLDivElement>('[data-panel="globals"]')!;
   const codeEl = layout.querySelector<HTMLElement>('[data-role="code"]')!;
+  // The Prism CSS theme styles tokens via class selectors; the language
+  // class on the <code> element is what highlightElement keys off.
+  codeEl.className = 'language-typescript';
 
   // Per-story props (reset to story defaults — they're component-specific).
   const propValues: Record<string, unknown> = { ...story.defaultProps };
@@ -142,12 +175,16 @@ export const renderLabStory = (name: string): (() => void) => {
   });
 
   // ─── Props panel ────────────────────────────────────────────────────────
+  // Hoisted forward-declaration: refreshCode is defined below in the Code
+  // tab section, but the props knobs need to call it on every change so
+  // the snippet stays in sync. Function declarations would also work.
+  const onPropChange = (key: string, val: unknown): void => {
+    propValues[key] = val;
+    handle.setProps({ [key]: val });
+    refreshCode();
+  };
   story.propDefs.forEach((def) => {
-    propsPanel.appendChild(renderKnob(def, propValues, (key, val) => {
-      propValues[key] = val;
-      handle.setProps({ [key]: val });
-      refreshCode();
-    }));
+    propsPanel.appendChild(renderKnob(def, propValues, onPropChange));
   });
 
   // ─── Forces panel ───────────────────────────────────────────────────────
@@ -185,11 +222,69 @@ export const renderLabStory = (name: string): (() => void) => {
     }));
   });
 
+  // ─── Choreography panel ─────────────────────────────────────────────────
+  const CHOREO_DEFS: PropDef[] = [
+    { kind: 'number', key: 'particlePhaseMs', label: 'particle phase ms', min: 0,    max: 3000, step: 50,    format: (v) => `${v.toFixed(0)}ms` },
+    { kind: 'number', key: 'returnMs',        label: 'return ms',         min: 50,   max: 2000, step: 20,    format: (v) => `${v.toFixed(0)}ms` },
+    { kind: 'number', key: 'fadeMs',          label: 'fade ms',           min: 0,    max: 1000, step: 10,    format: (v) => `${v.toFixed(0)}ms` },
+    { kind: 'number', key: 'burstKick',       label: 'burst kick',        min: 0,    max: 1500, step: 20,    format: (v) => v.toFixed(0) },
+    { kind: 'number', key: 'burstSoftness',   label: 'burst softness',    min: 0.005,max: 0.5,  step: 0.005, format: (v) => v.toFixed(3) },
+    {
+      kind: 'enum',
+      key: 'returnEasing',
+      label: 'return easing',
+      // Names sourced from screean.easing keys. Each maps to the actual
+      // curve via easingByName in mount.ts.
+      options: Object.keys(easing) as ReadonlyArray<string>,
+    },
+  ];
+  CHOREO_DEFS.forEach((def) => {
+    choreoPanel.appendChild(
+      renderKnob(def, choreoState as unknown as Record<string, unknown>, (key, val) => {
+        (choreoState as unknown as Record<string, unknown>)[key] = val;
+        handle.setChoreo({ ...choreoState, [key]: val } as ChoreoState);
+      }),
+    );
+  });
+  // Manual trigger — for non-interactive stories (label, card, image)
+  // that don't have an onClick to drive activation. Lives at the end of
+  // the choreo panel.
+  const triggerWrap = document.createElement('div');
+  triggerWrap.className = 'lab-trigger-wrap';
+  triggerWrap.innerHTML = `
+    <button type="button" class="lab-trigger-btn">Trigger dissolve</button>
+    <span class="lab-trigger-hint">— or click the live component above</span>
+  `;
+  triggerWrap.querySelector<HTMLButtonElement>('.lab-trigger-btn')!.addEventListener('click', () => {
+    handle.triggerDissolve();
+  });
+  choreoPanel.appendChild(triggerWrap);
+
   // ─── Code tab ───────────────────────────────────────────────────────────
   const refreshCode = (): void => {
     codeEl.textContent = renderTemplate(story.codeTemplate, handle.getProps());
+    // highlightElement is synchronous — it mutates the element's innerHTML
+    // to wrap tokens in <span class="token …"> nodes that the theme CSS
+    // styles. Cheap to call on every prop change since snippets are tiny.
+    Prism.highlightElement(codeEl);
   };
   refreshCode();
+
+  // ─── Kick-mode toggle ────────────────────────────────────────────────
+  // Default: pointer mode (clicks behave normally — interactive
+  // components receive them). Toggle on for play/tuning: every canvas
+  // click fires a radial impulse from the cursor.
+  let kickModeOn = false;
+  kickToggle.addEventListener('click', () => {
+    kickModeOn = !kickModeOn;
+    handle.setKickMode(kickModeOn);
+    kickToggle.setAttribute('aria-pressed', String(kickModeOn));
+    kickToggle.classList.toggle('active', kickModeOn);
+    kickToggle.innerHTML = kickModeOn ? HAMMER_ICON_SVG : POINTER_ICON_SVG;
+    kickToggle.title = kickModeOn
+      ? 'Kick mode ON — clicks scatter particles. Click to disable.'
+      : 'Click empty canvas to scatter (off — clicks behave normally)';
+  });
 
   // ─── Tabs ───────────────────────────────────────────────────────────────
   const tabs = layout.querySelectorAll<HTMLButtonElement>('.lab-tab');

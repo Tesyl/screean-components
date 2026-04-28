@@ -1,0 +1,96 @@
+/* @screean/components — default visual identity for component mirrors.
+ *
+ * Geometry (radius, width/height, label centering) lives inline on the mirror
+ * element — see src/components/dom/domMirror.ts. That's because the particle
+ * field has already committed to those numbers, and inline styles beat any
+ * stylesheet override; the two projections agree by construction.
+ *
+ * This stylesheet supplies PAINT — background, border, color, shadow, blur,
+ * transitions. Consumers can override by importing AFTER this file or by
+ * targeting any selector with higher specificity (a single class is enough).
+ *
+ * Selectors are scoped under #screean-mirror so the rules don't bleed into
+ * the rest of the host app. Each role has a low-specificity selector — one
+ * id + one attribute — easy to override with `#screean-mirror > .my-button`
+ * or a single-class wrapper class on a per-app theme.
+ *
+ * Theming hooks: every value uses a CSS custom property with a sensible
+ * default. Set the property on `:root` (or `.screean-theme-x`) to retheme
+ * without touching the rules below.
+ */
+
+#screean-mirror {
+  /* Custom-property defaults. Override on :root or any ancestor to retheme. */
+  --screean-bg:           rgba(16, 14, 28, 0.72);
+  --screean-bg-hover:     rgba(30, 28, 50, 0.82);
+  --screean-bg-pressed:   rgba(46, 42, 78, 0.88);
+  --screean-bg-disabled:  rgba(16, 14, 28, 0.45);
+  --screean-fg:           rgba(230, 232, 240, 0.92);
+  --screean-fg-disabled:  rgba(230, 232, 240, 0.35);
+  --screean-fg-muted:     rgba(200, 205, 220, 0.70);
+  --screean-fg-strong:    rgba(240, 240, 248, 0.94);
+  --screean-border:       rgba(180, 180, 220, 0.14);
+  --screean-border-hover: rgba(180, 180, 220, 0.28);
+  --screean-accent:       rgb(130, 160, 255);
+  --screean-shadow:       0 1px 0 rgba(255, 255, 255, 0.04) inset,
+                          0 4px 16px rgba(0, 0, 0, 0.30);
+  --screean-blur:         blur(8px) saturate(1.1);
+  --screean-transition:   opacity 220ms ease,
+                          background 120ms ease,
+                          border-color 120ms ease;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Button — pill chrome with dark glass background and a hairline.
+ * border-radius is inlined by the mirror from the component's `radius`.
+ * ──────────────────────────────────────────────────────────────────────────*/
+#screean-mirror > [role="button"] {
+  background: var(--screean-bg);
+  border: 1px solid var(--screean-border);
+  color: var(--screean-fg);
+  backdrop-filter: var(--screean-blur);
+  -webkit-backdrop-filter: var(--screean-blur);
+  box-shadow: var(--screean-shadow);
+  transition: var(--screean-transition);
+  cursor: pointer;
+  user-select: none;
+  /* Padding is intentionally NOT here — width/height come from the bounds
+   * rect the particle field already rasterized. Adding padding would
+   * inflate the visible chrome past where the particles trace. */
+}
+#screean-mirror > [role="button"]:hover {
+  background: var(--screean-bg-hover);
+  border-color: var(--screean-border-hover);
+}
+#screean-mirror > [role="button"][aria-pressed="true"] {
+  background: var(--screean-bg-pressed);
+  border-color: var(--screean-border-hover);
+}
+#screean-mirror > [role="button"][aria-disabled="true"] {
+  background: var(--screean-bg-disabled);
+  border-color: rgba(180, 180, 220, 0.06);
+  color: var(--screean-fg-disabled);
+  cursor: default;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Headings & decorative text — typographic, no chrome.
+ * ──────────────────────────────────────────────────────────────────────────*/
+#screean-mirror > [role="heading"] {
+  color: var(--screean-fg-strong);
+  letter-spacing: -0.01em;
+}
+#screean-mirror > [role="text"] {
+  color: var(--screean-fg-muted);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Focus ring — keyboard-only. Offset outward so it doesn't fight the chrome.
+ * ──────────────────────────────────────────────────────────────────────────*/
+#screean-mirror > :focus-visible {
+  outline: 2px solid var(--screean-accent);
+  outline-offset: 3px;
+}
+#screean-mirror > :focus:not(:focus-visible) {
+  outline: none;
+}

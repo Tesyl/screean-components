@@ -60,6 +60,14 @@ export const button = (opts: ButtonOpts): Component => {
     // DOM mirror reads this to inline the same `font` on the mirror div,
     // so DOM text and particle text stay in lockstep on size/weight.
     font,
+    // Geometry: the same numbers the rect() particle field rasterized.
+    // The mirror reads these and inlines border-radius (so the mirror has
+    // the same rounded corners as the particle SDF) — width/height also
+    // travel here as a future hardening hook even though the bounds rect
+    // already carries them.
+    width,
+    height,
+    radius,
     onClick: opts.onClick,
     onPointerEnter: opts.onPointerEnter,
     onPointerLeave: opts.onPointerLeave,

@@ -1713,168 +1713,289 @@ html { scroll-behavior: smooth; scroll-padding-top: 64px; }
 }
 
 /* ============================================================
-   LAB — sidebar + tabbed controls panel
-   Layout: sidebar (left) + main column (right) with canvas
-   stage on top and tabbed controls panel below.
+   LAB — fullscreen canvas + floating glass overlays
+   Layout: stage fills the viewport-below-nav. Sidebar + controls
+   panel + kick toggle are absolutely-positioned glass overlays.
+   No doc-head, no footer — the canvas IS the work surface.
    ============================================================ */
 
+/* Site-nav above the lab is intentionally kept (lets the user navigate
+   away). Lab fills everything below it. */
 .lab-layout {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 24px;
-  padding: 24px 32px 48px 32px;
-  max-width: 1600px;
-  margin: 0 auto;
-  align-items: start;
-}
-
-.lab-sidebar {
-  position: sticky;
-  top: 24px;
-  padding: 14px 0;
-  display: flex;
-  flex-direction: column;
-}
-.lab-sidebar-head {
-  padding: 4px 18px 10px 18px;
-  border-bottom: var(--hairline) solid var(--border);
-  margin-bottom: 8px;
-}
-.lab-sidebar-eyebrow {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.lab-stories {
-  display: flex;
-  flex-direction: column;
-}
-.lab-story-link {
-  display: block;
-  padding: 9px 18px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--fg);
-  text-decoration: none;
-  border-left: 2px solid transparent;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-}
-.lab-story-link:hover { background: var(--subtle); }
-.lab-story-link.active {
-  background: var(--subtle);
-  border-left-color: var(--accent);
-  color: var(--fg);
-}
-
-.lab-main {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  min-width: 0;
-}
-.lab-doc-head {
-  padding: 0 0 4px 0;
-}
-.lab-doc-head h1 {
-  margin: 6px 0 4px 0;
-  font-size: 28px;
-  font-weight: 500;
-}
-.lab-doc-head p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-/* Stage — the live component view. Canvas + invisible mirror host overlay. */
-.lab-stage {
   position: relative;
-  height: 420px;
+  width: 100%;
+  height: calc(100vh - 56px);
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: #06050d;
+}
+
+/* Stage: full-bleed canvas + the drift backdrop. Mirror host sits as
+   another absolute layer above the canvas. */
+.lab-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+.lab-stage::before {
+  content: '';
+  position: absolute;
+  inset: -10%;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(140, 100, 255, 0.28), transparent 42%),
+    radial-gradient(circle at 70% 60%, rgba(100, 180, 255, 0.22), transparent 46%),
+    radial-gradient(circle at 50% 80%, rgba(199, 255, 81, 0.16), transparent 52%);
+  filter: blur(48px) saturate(1.2);
+  animation: lab-stage-drift 90s linear infinite;
+  pointer-events: none;
+}
+@keyframes lab-stage-drift {
+  0%   { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(180deg) scale(1.1); }
+  100% { transform: rotate(360deg) scale(1); }
 }
 .lab-canvas {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
-  background: var(--bg);
+  background: transparent;
 }
 .lab-mirror-host {
   position: absolute;
   inset: 0;
+  z-index: 2;
   pointer-events: none;
 }
 
-/* Controls panel — tabbed bottom section. */
-.lab-controls {
+/* Shared overlay style — the glass plate every floating panel sits on.
+   `lab-overlay` adds the visual; positioning is per-panel below. */
+.lab-overlay {
+  background: rgba(10, 8, 22, 0.62);
+  border: var(--hairline) solid rgba(180, 180, 230, 0.10);
+  border-radius: 10px;
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  color: var(--fg);
+}
+
+/* Sidebar — top-left overlay. Story label up top, story list below.
+   Capped height with internal scroll so the list can't push past the
+   viewport. */
+.lab-sidebar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 4;
+  width: 232px;
+  max-height: calc(100% - 32px);
   display: flex;
   flex-direction: column;
-  min-height: 280px;
+  overflow: hidden;
+}
+.lab-sidebar-head {
+  padding: 14px 16px 12px 16px;
+  border-bottom: var(--hairline) solid rgba(180, 180, 230, 0.08);
+}
+.lab-sidebar-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 6px;
+}
+.lab-sidebar-title {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: rgba(240, 240, 248, 0.95);
+}
+.lab-sidebar-blurb {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: rgba(190, 195, 215, 0.7);
+}
+.lab-stories {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 6px 0 8px 0;
+}
+.lab-story-link {
+  display: block;
+  padding: 7px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgba(210, 215, 235, 0.75);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.lab-story-link:hover {
+  background: rgba(199, 255, 81, 0.06);
+  color: rgba(240, 240, 248, 0.95);
+}
+.lab-story-link.active {
+  background: rgba(199, 255, 81, 0.10);
+  border-left-color: var(--accent);
+  color: rgba(240, 240, 248, 0.95);
+}
+
+/* Kick-mode toggle — top-right of the canvas. Same visual vocabulary as
+   the sidebar / controls. */
+.lab-kick-toggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 4;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: rgba(220, 220, 240, 0.78);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.lab-kick-toggle:hover {
+  background: rgba(40, 32, 60, 0.72);
+  color: rgba(240, 240, 255, 0.95);
+}
+.lab-kick-toggle.active {
+  background: rgba(199, 255, 81, 0.18);
+  border-color: rgba(199, 255, 81, 0.55);
+  color: rgb(220, 255, 130);
+}
+.lab-kick-toggle.active:hover {
+  background: rgba(199, 255, 81, 0.28);
+}
+.lab-kick-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Controls panel — right side, full height (-margins). Tabs across the
+   top, knob panels below with their own scroll. */
+.lab-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 4;
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .lab-tabs {
   display: flex;
-  border-bottom: var(--hairline) solid var(--border);
-  padding: 0 8px;
+  border-bottom: var(--hairline) solid rgba(180, 180, 230, 0.08);
+  padding: 0 4px;
+  flex-shrink: 0;
 }
 .lab-tab {
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  padding: 12px 16px;
+  padding: 12px 12px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted);
   cursor: pointer;
+  flex: 1 1 auto;
   transition: color 0.12s ease, border-color 0.12s ease;
 }
-.lab-tab:hover { color: var(--fg); }
+.lab-tab:hover { color: rgba(240, 240, 248, 0.95); }
 .lab-tab.active {
-  color: var(--fg);
+  color: rgba(240, 240, 248, 0.95);
   border-bottom-color: var(--accent);
 }
 .lab-tab-panels {
-  padding: 18px 22px 22px 22px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px 28px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 14px 16px 16px 16px;
 }
 .lab-tab-panel {
   display: none;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  gap: 14px 28px;
+  flex-direction: column;
+  gap: 12px;
 }
-.lab-tab-panel.active { display: grid; }
+.lab-tab-panel.active { display: flex; }
 
-/* Code tab — full width inside the panel. */
-.lab-tab-panel[data-panel="code"] {
-  grid-template-columns: 1fr;
-}
+/* Code tab is plaintext — no extra layout. */
 .lab-code {
   margin: 0;
-  padding: 14px 18px;
-  background: var(--bg);
-  border: var(--hairline) solid var(--border);
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: var(--hairline) solid rgba(180, 180, 230, 0.08);
   border-radius: 6px;
   overflow-x: auto;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11.5px;
   line-height: 1.55;
-  color: var(--fg);
+  color: rgba(230, 230, 245, 0.92);
   white-space: pre;
 }
+
+/* Trigger-dissolve button at the foot of the choreo panel. */
+.lab-trigger-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.lab-trigger-btn {
+  background: rgba(199, 255, 81, 0.10);
+  border: var(--hairline) solid rgba(199, 255, 81, 0.4);
+  border-radius: 6px;
+  color: rgb(220, 255, 130);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.lab-trigger-btn:hover { background: rgba(199, 255, 81, 0.18); }
+.lab-trigger-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Knob refinement for compact panel. The .pg-knob block stays as-is for
+   the playground; lab-tab-panel scopes a tighter variant. */
+.lab-tab-panel .pg-knob {
+  margin: 0;
+}
+.lab-tab-panel .pg-knob-head {
+  margin-bottom: 4px;
+}
+.lab-tab-panel .pg-knob-label {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+}
+.lab-tab-panel .pg-knob-value {
+  font-size: 11px;
+}
 .lab-coming-soon {
-  grid-column: 1 / -1;
   margin: 0;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   font-style: italic;
 }
 

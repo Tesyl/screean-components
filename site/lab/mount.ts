@@ -22,18 +22,25 @@ import {
   TRANSPARENT,
   easing as easingCurves,
   packRGBA,
+  radialImpulse,
+  type Color,
   type SceneNode,
   type Easing,
 } from 'screean';
 import {
   createDissolve,
   createDomMirror,
+  type Component,
   type Dissolve,
   type DomMirror,
   type ComponentEvent,
 } from '../../src/components';
+// Default visual identity for component mirrors (paint layer — geometry
+// lives inline on the mirror element). Importing here gives every lab
+// story a styled button/heading/etc. out of the box without per-page CSS.
+import '../../src/components/styles.css';
 
-import { Stage } from '../embed';
+import { Stage, windowPointer } from '../embed';
 import { DEFAULT_THEME, THEMES } from '../themes';
 import {
   type ChoreoState,
@@ -47,6 +54,16 @@ export type LabHandle = {
   setForces: (state: ForceState) => void;
   setGlobals: (state: GlobalState) => void;
   setChoreo: (state: ChoreoState) => void;
+  // Manual dissolve trigger for the controls panel's "Trigger" button.
+  // Fires against the most-recently-built component — essential for
+  // non-interactive stories (label, card, image) that don't have an
+  // onClick / onChange to drive activation organically.
+  triggerDissolve: () => void;
+  // Kick mode toggle. When `true`, canvas clicks fire a radial impulse
+  // from the cursor. When `false` (default), canvas clicks do nothing
+  // and mirror divs receive their own events normally. The toggle lives
+  // in the lab page UI; this is the wire from button → behavior.
+  setKickMode: (on: boolean) => void;
   // Read-only accessors for the Code tab.
   getProps: () => Record<string, unknown>;
   dispose: () => void;
@@ -117,9 +134,18 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
     particleCount: globals.particleCount,
     spawnFrom: 'edge',
     spawnSpeed: globals.spawnSpeed,
-    portal: false,
+    // Portal mode = translucent canvas. The gradient backdrop on
+    // .lab-stage::before peeks through the cloud — same aesthetic as the
+    // standalone demos. Without this, the canvas's own clear color hides
+    // the backdrop entirely.
+    portal: true,
     particleSize: globals.particleSize,
     trailAlpha: globals.trailAlpha,
+    // Pointer attractor — matches button-grid's `pointForce(pointer, …)`.
+    // Particles weakly track the cursor, giving the cloud a sense of "this
+    // surface is alive and aware of you" without overpowering the spring
+    // that holds them on bound targets.
+    pointerProvider: windowPointer,
   });
 
   // Inline activation wrapper: each component's onClick / onChange also
@@ -131,11 +157,38 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
     if (dissolve) dissolve.trigger(e.component);
   };
 
+  // Track the most-recently-built component so the controls panel's
+  // "Trigger" button can fire dissolve on it. Stories that return a
+  // single Component (every story today) populate this on each build.
+  let currentComponent: Component | null = null;
+
   // The story's build() receives `activate` as its onActivate arg. The
   // story wires it to the component's interactive opt (onClick / onChange).
   // Each user click on the live component fires dissolve via the same path,
   // so the choreography is consistent across every component type.
-  const buildScene = (): SceneNode => story.build(props, activate);
+  const buildScene = (): SceneNode => {
+    const c = story.build(props, activate);
+    // Stories return a Component (which IS a SceneNode). Capture it here
+    // so triggerDissolve has a target.
+    currentComponent = c as Component;
+    return c;
+  };
+
+  // Center the camera over the current content. Same math `Stage.setScene`
+  // uses for autoPan: shift world-origin so the content's bounds are
+  // centered in the viewport. The camera's pan is its node `transform`
+  // (camera() initializes transform.x/y from opts.pan). Mutating the
+  // transform fields directly is how `Stage` does it under the hood.
+  const recenter = (): void => {
+    const child = cameraNode.children[0];
+    const r = child?.intrinsic ?? { x: 0, y: 0, w: 0, h: 0 };
+    if (!cameraNode.transform) return;
+    cameraNode.transform.x = (W - r.w) / 2 - r.x;
+    cameraNode.transform.y = (H - r.h) / 2 - r.y;
+  };
+  // cameraOf is unused after this rewrite, but kept in imports for future
+  // plumbing (zoom / animated pan via the CameraAPI).
+  void cameraOf;
 
   // Persistent camera + scene root.
   const cameraNode = camera({ viewport: { w: W, h: H } }, buildScene());
@@ -153,18 +206,101 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
     }),
   );
   sceneObj.tick(0);
+  recenter();
+  sceneObj.tick(0);
   sceneObj.bindAll(sg.world.particles, { kind: 'bounds-area' });
 
-  // Default-color the cloud from the palette so particles are visible at rest.
-  const colorAll = (): void => {
-    const { hueCenter, hueRange, saturation, lightness } = globals;
-    for (const p of sg.world.particles) {
-      const h = (((hueCenter + (Math.random() - 0.5) * hueRange) + 360) % 360) / 360;
-      const [r, g, b] = hslToRgb(h, saturation, lightness);
-      p.color = packRGBA((r * 255) | 0, (g * 255) | 0, (b * 255) | 0, 255);
-    }
+  // Click on empty canvas area. Default behavior: do nothing — let the
+  // mirror divs handle their own clicks normally. When kickMode is on,
+  // every click also fires a radial impulse from the cursor (a "play"
+  // gesture for tuning forces / scattering particles to watch them
+  // recover). The kick-toggle button in the UI calls setKickMode below.
+  let kickMode = false;
+  const onCanvasClick = (e: MouseEvent): void => {
+    if (!kickMode) return;
+    const r = canvas.getBoundingClientRect();
+    const cx = e.clientX - r.left;
+    const cy = e.clientY - r.top;
+    radialImpulse(sg.world.particles, {
+      origin: { x: cx, y: cy },
+      kick: 360,
+      softness: 0.12,
+    });
   };
-  colorAll();
+  canvas.addEventListener('click', onCanvasClick);
+
+  // ─── Responsive: ResizeObserver → Stage.resize ───────────────────────
+  // The canvas's CSS dimensions are width/height: 100% — they follow the
+  // wrap. Stage's internal back-buffer needs to be told. ResizeObserver
+  // fires whenever the wrap's box changes (window resize, fullscreen,
+  // sidebar collapse, anything). Coalesced via rAF so a continuous resize
+  // drag doesn't fire 60 Stage.resize calls per second.
+  let mutableW = W;
+  let mutableH = H;
+  let resizeRaf = 0;
+  const ro = new ResizeObserver((entries) => {
+    const entry = entries[0];
+    if (!entry) return;
+    const { width, height } = entry.contentRect;
+    const w = Math.max(60, Math.round(width));
+    const h = Math.max(60, Math.round(height));
+    if (w === mutableW && h === mutableH) return;
+    if (resizeRaf) cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(() => {
+      mutableW = w;
+      mutableH = h;
+      sg.resize(w, h);
+      // Update camera viewport so layout math (and recenter) use new
+      // dimensions. Direct mutation — same pattern as the controls
+      // experiment's fullscreen handler.
+      const ci = cameraOf(cameraNode);
+      if (ci) {
+        ci.viewport.w = w;
+        ci.viewport.h = h;
+      }
+      // Re-bind to new positions (column layout depends on viewport for
+      // padding / centering); recenter then second tick to apply.
+      sceneObj.tick(0);
+      // The recenter helper reads `W`/`H` from closure; we keep those in
+      // sync here by reassigning at the top via mutableW/H. But the
+      // recenter inside this scope still reads the original const W/H.
+      // Inline the math here against the new dims.
+      const child = cameraNode.children[0];
+      const r = child?.intrinsic ?? { x: 0, y: 0, w: 0, h: 0 };
+      if (cameraNode.transform) {
+        cameraNode.transform.x = (w - r.w) / 2 - r.x;
+        cameraNode.transform.y = (h - r.h) / 2 - r.y;
+      }
+      sceneObj.tick(0);
+      sceneObj.bindAll(sg.world.particles, { kind: 'bounds-area' });
+      mirror.reconcile();
+    });
+  });
+  ro.observe(canvas);
+
+  // Components-mode visibility: particles are TRANSPARENT at rest. The
+  // mirror is what the user sees standing still; particles only become
+  // visible during a dissolve cycle (onReveal → pickColor; onHide →
+  // TRANSPARENT). Mirrors components.html exactly.
+  //
+  // Why not "visible at rest"? Two projections were fighting for the
+  // viewer's eye — the mirror chrome and the always-on cloud. Going
+  // invisible-at-rest cleans that up: chrome is the steady state, particles
+  // are the transformation. See `docs/RFC-component-model.md` (when written).
+  const hideAll = (): void => {
+    for (const p of sg.world.particles) p.color = TRANSPARENT;
+  };
+  // Sample one color from the current palette — used by dissolve.onReveal
+  // to color particles as they enter the visible phase. Reads `globals`
+  // from closure so palette changes flow through without re-creating the
+  // dissolve instance.
+  const pickColor = (): Color => {
+    const { hueCenter, hueRange, saturation, lightness } = globals;
+    const h = (((hueCenter + (Math.random() - 0.5) * hueRange) + 360) % 360) / 360;
+    const [r, g, b] = hslToRgb(h, saturation, lightness);
+    return packRGBA((r * 255) | 0, (g * 255) | 0, (b * 255) | 0, 255);
+  };
+  hideAll();
 
   // ─── DOM mirror + dissolve ────────────────────────────────────────────
   const mirror: DomMirror = createDomMirror({ scene: sceneObj, host: mirrorHost });
@@ -174,11 +310,20 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
     scene: sceneObj,
     particles: sg.world.particles,
     mirrorHost,
-    onReveal: () => {},
-    onHide: () => {
-      // Re-color any particles that drifted to TRANSPARENT during the
-      // cycle — the lab keeps the cloud visible at rest.
-      colorAll();
+    // Reveal: color the particles entering the visible phase from palette.
+    // Hide: snap them back to TRANSPARENT so steady state stays "invisible
+    // cloud + visible mirror chrome." Same shape as button-grid demo.
+    onReveal: (indices) => {
+      for (const i of indices) {
+        const p = sg.world.particles[i];
+        if (p) p.color = pickColor();
+      }
+    },
+    onHide: (indices) => {
+      for (const i of indices) {
+        const p = sg.world.particles[i];
+        if (p) p.color = TRANSPARENT;
+      }
     },
     particlePhaseMs: choreo.particlePhaseMs,
     returnMs: choreo.returnMs,
@@ -188,18 +333,26 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
     returnEasing: easingByName(choreo.returnEasing),
   });
 
-  // ─── Rebuild — swap camera children, re-tick, re-bind ─────────────────
+  // ─── Rebuild — swap camera children, re-tick, re-center, re-bind ─────
   const rebuild = (): void => {
     const next = buildScene();
     cameraNode.children.length = 0;
     cameraNode.children.push(next);
     next.parent = cameraNode;
+    // First tick computes intrinsic bounds; recenter then a second tick
+    // applies the new pan so bindAll sees the centered targets.
+    sceneObj.tick(0);
+    recenter();
     sceneObj.tick(0);
     sceneObj.bindAll(sg.world.particles, { kind: 'bounds-area' });
     mirror.reconcile();
   };
 
-  // ─── Per-frame: scene tick + mirror reconcile ─────────────────────────
+  // ─── Per-frame: scene tick + dissolve tick + mirror reconcile ────────
+  // dissolve.tick advances the state machine (particles → returning →
+  // reforming → end). Without this call, dissolve.trigger sets opacity
+  // to 0 and the cycle never finishes — mirror stays invisible until a
+  // rebuild forces a reconcile. Consumers MUST wire tick into their rAF.
   let raf = 0;
   let lastT = performance.now();
   const tick = (now: number): void => {
@@ -207,6 +360,7 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
     const dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
     sceneObj.tick(dt);
+    dissolve.tick(now);
     mirror.reconcile();
   };
   raf = requestAnimationFrame(tick);
@@ -237,7 +391,10 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
           sat: globals.saturation,
           lit: globals.lightness,
         });
-        colorAll();
+        // No recolor at rest — palette only matters when particles enter
+        // the visible phase via pickColor() during a dissolve. Changing
+        // the palette mid-rest would do nothing visible anyway since
+        // every particle is currently TRANSPARENT.
       }
       // Particle count change requires a full respawn.
       if (next.particleCount !== undefined && next.particleCount !== prev.particleCount) {
@@ -252,7 +409,7 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
           }),
         );
         sceneObj.bindAll(sg.world.particles, { kind: 'bounds-area' });
-        colorAll();
+        hideAll();
       }
       // particleSize / trailAlpha are renderer opts — Stage doesn't
       // currently re-expose those at runtime. We swallow the change for
@@ -267,8 +424,18 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
         scene: sceneObj,
         particles: sg.world.particles,
         mirrorHost,
-        onReveal: () => {},
-        onHide: () => colorAll(),
+        onReveal: (indices) => {
+          for (const i of indices) {
+            const p = sg.world.particles[i];
+            if (p) p.color = pickColor();
+          }
+        },
+        onHide: (indices) => {
+          for (const i of indices) {
+            const p = sg.world.particles[i];
+            if (p) p.color = TRANSPARENT;
+          }
+        },
         particlePhaseMs: choreo.particlePhaseMs,
         returnMs: choreo.returnMs,
         fadeMs: choreo.fadeMs,
@@ -277,9 +444,16 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
         returnEasing: easingByName(choreo.returnEasing),
       });
     },
+    triggerDissolve: () => {
+      if (currentComponent) dissolve.trigger(currentComponent);
+    },
+    setKickMode: (on) => { kickMode = on; },
     getProps: () => ({ ...props }),
     dispose: () => {
       if (raf) cancelAnimationFrame(raf);
+      if (resizeRaf) cancelAnimationFrame(resizeRaf);
+      ro.disconnect();
+      canvas.removeEventListener('click', onCanvasClick);
       dissolve.dispose();
       mirror.dispose();
       sg.dispose();

@@ -89,14 +89,18 @@ export type ForceState = {
   repelStrength: number;
 };
 
+// Calibrated to match the components.html (button-grid) feel: tight
+// spring + active drag + neighbor repulsion ON so particles maintain
+// crisp definition at rest. Tuning these moves you between "tight UI"
+// and "loose cloud" feels.
 export const DEFAULT_FORCE_STATE: ForceState = {
-  springK: 60,
-  springC: 12,
-  drag: 0.6,
-  shimmerAmp: 4,
-  shimmerFreq: 1.6,
-  repelRadius: 6,
-  repelStrength: 0,
+  springK: 90,
+  springC: 14,
+  drag: 0.7,
+  shimmerAmp: 5,
+  shimmerFreq: 4,
+  repelRadius: 5,
+  repelStrength: 1000,
 };
 
 // ─── Global / world knobs ───────────────────────────────────────────────────
@@ -115,10 +119,13 @@ export type GlobalState = {
   lightness: number;
 };
 
+// 12k particles balances the components.html (20k) richness against
+// the lab's many concurrent overlays/panels. Bump in the Globals tab
+// for a denser cloud — modern WebGL renderer handles 20k easily.
 export const DEFAULT_GLOBAL_STATE: GlobalState = {
-  particleCount: 4000,
+  particleCount: 12000,
   particleSize: 1.0,
-  trailAlpha: 0.2,
+  trailAlpha: 0.25,
   spawnSpeed: 240,
   hueCenter: 70,
   hueRange: 12,

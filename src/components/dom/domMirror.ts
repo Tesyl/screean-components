@@ -102,6 +102,10 @@ type MirrorEntry = {
   lastPressed: boolean | undefined;
   lastChecked: boolean | 'mixed' | undefined;
   lastFont: string | undefined;
+  // Track the last radius written so a knob change (e.g. lab "radius"
+  // slider) updates the inline border-radius without re-touching DOM
+  // every frame.
+  lastRadius: number | undefined;
   lastValue: number | undefined;
   lastMin: number | undefined;
   lastMax: number | undefined;
@@ -114,6 +118,19 @@ type MirrorEntry = {
   onKey: ((e: KeyboardEvent) => void) | null;
   onInput: ((e: Event) => void) | null;
 };
+
+// Roles whose particle field rasterizes the label centered in the chrome.
+// The mirror MUST flex-center its textContent for these — anything else
+// puts the DOM text in a different spot than the particles, breaking the
+// "particles are this thing" illusion. Inline so any consumer stylesheet
+// can't accidentally undo it; geometry agreement is non-negotiable.
+const CENTERED_LABEL_ROLES: ReadonlySet<AriaRole> = new Set<AriaRole>([
+  'button',
+  'heading',
+  'switch',
+  'checkbox',
+  'radio',
+]);
 
 const disposeEntry = (entry: MirrorEntry): void => {
   if (entry.onClick) entry.el.removeEventListener('click', entry.onClick);
@@ -145,12 +162,26 @@ const createEntry = (c: Component): MirrorEntry => {
   // here means unpositioned-at-first, but reconcile() always runs for new
   // entries before the next paint.
   //
-  // NO inline `background` — consumer CSS is the source of truth for how
-  // mirrors render visually. Inline styles beat external selectors, so
-  // forcing `background: transparent` here would have locked out any
-  // consumer-supplied accent colors.
+  // Layout-intent rules — these are FACTS about where the particles place
+  // their content, mirrored inline so a consumer stylesheet can never knock
+  // the DOM out of alignment with the particle field. They are intentionally
+  // NOT in the package stylesheet:
+  //   - `box-sizing: border-box` — chrome borders sit inside width/height,
+  //     matching the rect() field's outer extent.
+  //   - For centered-label roles (button, heading, switch, checkbox, radio)
+  //     we inline flex centering. The particle field rasterizes the label
+  //     dead-center via stack(); the mirror must too.
+  //
+  // What is NOT inlined here (paint — left to the package stylesheet):
+  //   - background, border color, box-shadow, backdrop-filter, transitions.
+  //     Those are theme/skin and consumers can override them at will.
+  //
+  // The historic note about "consumer CSS is source of truth for visuals"
+  // still holds for paint; geometry is now a contract with the particle field.
+  const centerLabel = CENTERED_LABEL_ROLES.has(role);
   el.style.cssText =
-    'position:absolute;top:0;left:0;will-change:transform;';
+    'position:absolute;top:0;left:0;will-change:transform;box-sizing:border-box;' +
+    (centerLabel ? 'display:flex;align-items:center;justify-content:center;' : '');
 
   if (role !== 'none') el.setAttribute('role', role);
   if (i.ariaLabel !== undefined) {
@@ -204,6 +235,15 @@ const createEntry = (c: Component): MirrorEntry => {
   if (i.font !== undefined) {
     el.style.font = i.font;
     el.style.lineHeight = '1';
+  }
+  // Chrome rounding. The particle field rasterizes a rounded-rect SDF with
+  // this exact radius; the mirror inlines the same number so its visible
+  // background/border (from the package stylesheet) traces the same curve.
+  // Mismatched radii produce the classic "particles trace a pill but the
+  // mirror is a square" tell — fixing it here means stylesheets only need
+  // to set a default chrome treatment, not also guess at radius.
+  if (i.radius !== undefined) {
+    el.style.borderRadius = `${i.radius}px`;
   }
 
   let onClick: MirrorEntry['onClick'] = null;
@@ -287,6 +327,7 @@ const createEntry = (c: Component): MirrorEntry => {
     lastPressed: i.pressed,
     lastChecked: i.checked,
     lastFont: i.font,
+    lastRadius: i.radius,
     lastValue: i.value,
     lastMin: i.min,
     lastMax: i.max,
@@ -331,6 +372,13 @@ const syncAriaIfChanged = (entry: MirrorEntry, c: Component): void => {
     entry.lastFont = i.font;
     entry.el.style.font = i.font ?? '';
     entry.el.style.lineHeight = i.font !== undefined ? '1' : '';
+  }
+  // Radius is part of the geometry contract — when the consumer rebuilds
+  // the component with a new radius, the particle SDF re-rasterizes AND
+  // the mirror re-inlines the curve. Same number, two projections.
+  if (entry.lastRadius !== i.radius) {
+    entry.lastRadius = i.radius;
+    entry.el.style.borderRadius = i.radius !== undefined ? `${i.radius}px` : '';
   }
   if (entry.lastValue !== i.value) {
     entry.lastValue = i.value;

@@ -152,11 +152,21 @@ export type SizedOpts = {
   z?: number;
 };
 
-// The low-level component() factory's opts. Interactive + font, because
-// font is the one visual property that BOTH the particle rendering and
-// the DOM mirror need to agree on — storing it on the component gives the
-// mirror the authoritative value to inline so particles and DOM text
-// always render at the same size.
+// The low-level component() factory's opts. Interactive + visual identity
+// fields the mirror needs to render in lockstep with the particle field.
+//
+// Visual identity (font, width, height, radius) is captured here because
+// BOTH projections — the particle rasterization and the DOM mirror — must
+// agree on geometry. The factory composes the particle field from these
+// numbers (rect width/height/radius, glyph metrics from font); the mirror
+// reads the same numbers off internals and inlines them. There is no
+// separate "particle layout" and "DOM layout" — there is one geometry
+// declared once on the component, projected twice.
+//
+// Paint (color, shadow, border style, blur) is NOT captured here. Paint
+// is theme-level and applied by the package stylesheet (overridable). The
+// distinction matters: geometry must agree by construction, paint only
+// has to agree aesthetically.
 //
 // `value`/`min`/`max` carry the slider/range axis: domMirror writes
 // `aria-valuenow`/`aria-valuemin`/`aria-valuemax` when present. Set on
@@ -167,6 +177,15 @@ export type ComponentOpts = InteractiveOpts & {
   // inlines this on the mirror div so DOM text matches the particle text
   // exactly. When undefined, the mirror falls back to consumer CSS.
   font?: string;
+  // Chrome dimensions. When set, the particle field rasterizes these
+  // exact pixels and the mirror inlines `border-radius` (radius) and
+  // tracks the same width/height the bounds rect would give it. Keeping
+  // them on internals lets the mirror render the rounded chrome that the
+  // particle SDF rasterizes — without this, the mirror has square corners
+  // while particles trace a pill.
+  width?: number;
+  height?: number;
+  radius?: number;
   value?: number;
   min?: number;
   max?: number;
@@ -198,6 +217,16 @@ export type ComponentInternals = {
   // rendered DOM text matches the particle-rendered text size/family.
   // Undefined when the consumer didn't set one (mirror falls back to CSS).
   font: string | undefined;
+  // Chrome geometry — populated when the factory composes a sized chrome
+  // (button rect, card rect, toggle pill, etc). The mirror reads `radius`
+  // to inline `border-radius`; width/height are duplicated here from the
+  // particle field's bounds rect so the mirror has the same number even
+  // when bounds aren't yet computed. Undefined for components that don't
+  // ship their own chrome (label, image — the consumer or theme stylesheet
+  // controls their box).
+  width: number | undefined;
+  height: number | undefined;
+  radius: number | undefined;
   // Range-axis state for role=slider. `undefined` = component does not
   // participate in the value axis; mirror skips aria-valuenow / -valuemin
   // / -valuemax. A default of 0 would wrongly tag every component as a

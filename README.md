@@ -9,34 +9,45 @@ The thesis: **state changes feel like matter moving, not styles swapping.** When
 ```
 screean-components/
 ├── src/
-│   ├── components/        Component primitives (button, label, card, toggle, slider)
-│   │                      + machinery (domMirror, dissolveAndReform, popTo3D,
-│   │                      focusTracker, pointerTracker, routePointerEvent,
-│   │                      routeKeyboardEvent)
-│   ├── components-demo/   Standalone button-grid dissolve demo (components.html)
-│   ├── html-interop/      Phase 3a "click button → particles → reform" demo
-│   │                      (html-interop.html)
-│   ├── routing-demo/      Physics-as-routing-transition demo (routing-demo.html)
-│   └── testing/           OffscreenCanvas stub for happy-dom tests
-└── site/                  Vanilla TS SPA — landing + components storybook +
-    ├── main.ts            experiments. Hosts screeanNav / screeanWipe (the
-    ├── pages/             canonical "physics is the transition" examples).
-    ├── stories/
-    ├── assets/            Static assets (.glb models, etc.)
-    ├── experiments/
-    │   ├── button.ts             Hover/press/click state with palette swap
-    │   ├── sixLogo.ts            glTF mesh ↔ wordmark ↔ flowfield, 3-state cycle
-    │   ├── flowfield.ts          CPU bounded curl-flowfield
-    │   └── flowfieldGpu.ts       WebGPU compute version (80K-500K particles)
-    └── lib/
-        ├── screeanNav.ts      Particle highlight that flies between nav items
-        ├── screeanWipe.ts     Particle bar that masks a content swap
-        ├── componentReel.ts   Tile reel: rasterize → dissolve → reform on cycle
-        ├── Reel.ts            Pure timer/state-machine driver
-        ├── embed.ts           Stage class + shared RAF ticker
-        ├── flowfield.ts       Stacked-sine flow + bounded particle drift
-        ├── fullscreen.ts      Canvas-wrap fullscreen toggle helper
-        └── gltf.ts            .glb parser + area-weighted surface sampler
+│   ├── components/                 Component library (the public surface)
+│   │   ├── component.ts             Core factory + findComponentAncestor
+│   │   ├── types.ts                 Component, ComponentEvent, opts, AriaRole
+│   │   ├── index.ts                 Public barrel — consumers import from here
+│   │   ├── factories/               Visible factories
+│   │   │   ├── label.ts · button.ts · card.ts
+│   │   │   ├── toggle.ts · slider.ts · checkbox.ts
+│   │   │   └── radio.ts · image.ts · textField.ts
+│   │   ├── dom/                     DOM mirror + dom-flavored choreography
+│   │   │   ├── domMirror.ts         Real <div>/<input> overlay per component
+│   │   │   ├── dissolveAndReform.ts Click → shatter → return → fade-in
+│   │   │   └── popTo3D.ts           Z-axis lift effect
+│   │   ├── routing/                 Event + focus routing
+│   │   │   ├── pointerTracker.ts · focusTracker.ts
+│   │   │   └── routePointerEvent.ts · routeKeyboardEvent.ts
+│   │   └── ui/                      React shadcn versions (interop)
+│   ├── demos/                      Standalone Vite multi-page entries
+│   │   ├── legacy-demo/             /legacy-demo.html — original
+│   │   ├── button-grid/             /components.html — DOM mirror showcase
+│   │   ├── routing/                 /routing-demo.html — physics-as-routing
+│   │   └── html-interop/            /html-interop.html — Phase 3a
+│   ├── lib/utils.ts                shadcn cn() helper for ui/
+│   └── testing/                    OffscreenCanvas stub for happy-dom tests
+└── site/                           Vanilla TS SPA (the showcase)
+    ├── main.ts · router.ts · layout.ts · themes.ts · embed.ts
+    ├── pages/                       Landing + components storybook + experiments + lab
+    ├── stories/                     Component storybook tile groups
+    ├── experiments/                 Lazy-loaded sandbox demos (button, sixLogo,
+    │                                flowfield, flowfield-gpu, controls)
+    ├── lab/                         Per-component design surface (NEW)
+    │   ├── mount.ts · types.ts · registry.ts
+    │   └── stories/                 One LabStory per component (9 total)
+    ├── assets/                      .glb models, static assets
+    └── lib/                         Site utilities, by category
+        ├── transitions/             screeanNav, screeanWipe (canonical examples)
+        ├── effects/                 Reel, componentReel
+        ├── physics/                 flowfield (stacked-sine vector field)
+        ├── loaders/                 gltf (parser + area-weighted sampler)
+        └── ui/                      fullscreen
 ```
 
 ## Run it
@@ -44,16 +55,17 @@ screean-components/
 ```sh
 pnpm install
 pnpm dev          # site SPA at http://localhost:3100/
-pnpm test         # 141 tests
+pnpm test         # 161 tests
 pnpm build        # type-check + bundle all entries
 ```
 
-The dev server serves five entries:
+The dev server serves the SPA at `/` plus four standalone multi-page entries:
 
 | URL | What |
 |---|---|
-| `/` | Showcase site SPA (landing + `/components` + `/experiments/*`) |
-| `/components.html` | Button-grid dissolve demo |
+| `/` | Showcase site SPA (landing · `/components` storybook · `/experiments/*` · `/lab/*`) |
+| `/lab/<story>` | Per-component design surface — Props / Forces / Choreography / Globals / Code knobs |
+| `/components.html` | Button-grid dissolve demo (real DOM mirror) |
 | `/html-interop.html` | Phase 3a interactive button-particle demo |
 | `/routing-demo.html` | Physics-as-routing-transition demo |
 | `/legacy-demo.html` | Original particle-components demo (kept for reference) |
@@ -71,19 +83,30 @@ SizedOpts            = { width?, height?, radius?, font?, z? }
 
 | Component | Opts | A11y |
 |---|---|---|
-| `label`  | `BaseComponentOpts & { label, font?, ariaRole?, z? }`  | role=text \| heading |
-| `button` | `InteractiveOpts & SizedOpts & { label, onClick }`     | role=button + aria-pressed/checked |
-| `card`   | `BaseComponentOpts & SizedOpts & { title, body, ... }` | role=none (decorative) |
-| `toggle` | `InteractiveOpts & SizedOpts & { on, onChange }`       | role=switch + aria-checked |
-| `slider` | `InteractiveOpts & SizedOpts & { value, min?, max?, onChange }` | role=slider + aria-valuenow/min/max |
+| `label`     | `BaseComponentOpts & { label, font?, ariaRole?, z? }`                | role=text \| heading |
+| `button`    | `InteractiveOpts & SizedOpts & { label, onClick }`                   | role=button + aria-pressed/checked |
+| `card`      | `BaseComponentOpts & SizedOpts & { title, body, ... }`               | role=none (decorative) |
+| `toggle`    | `InteractiveOpts & SizedOpts & { on, onChange }`                     | role=switch + aria-checked |
+| `slider`    | `InteractiveOpts & SizedOpts & { value, min?, max?, onChange }`      | role=slider + aria-valuenow/min/max |
+| `checkbox`  | `InteractiveOpts & SizedOpts & { checked, onChange }`                | role=checkbox + aria-checked (incl. `'mixed'`) |
+| `radio`     | `InteractiveOpts & SizedOpts & { checked, onChange, dotRadius? }`    | role=radio + aria-checked |
+| `image`     | `BaseComponentOpts & SizedOpts & { source, ariaLabel, alphaThreshold? }` | role=img + ariaLabel |
+| `textField` | `InteractiveOpts & SizedOpts & { value, onChange }`                  | role=textbox + onInput |
 
-Components are **consumer-controlled**: state (`pressed`, `checked`, `on`, `value`) is captured at construction; the consumer rebuilds with the new value on change. Mirrors React's controlled-input pattern.
+Components are **consumer-controlled**: state (`pressed`, `checked`, `on`, `value`, `textValue`) is captured at construction; the consumer rebuilds with the new value on change. Mirrors React's controlled-input pattern.
 
 ## DOM mirror
 
-`createDomMirror({ scene, host })` mounts an invisible `<div>` per component, parented to a single `#screean-mirror` container above the canvas. The div carries the component's role + ARIA state, sits at the component's world-bounds rect, and dispatches `click` + `keydown(Enter|Space)` into the component's `onClick`. Inline `font` + `line-height: 1` keep the DOM glyph metrics aligned with the canvas rasterization.
+`createDomMirror({ scene, host })` mounts a real DOM element per component, parented to a single `#screean-mirror` container above the canvas. Most components get a `<div role="...">`; `role=textbox` components get a real `<input type="text">` so the browser owns cursor / selection / IME / paste. Each element carries the component's role + ARIA state, sits at the component's world-bounds rect, and dispatches:
 
-This is what makes screen readers, keyboard focus, IME, copy/paste, and forced-color modes Just Work — without re-implementing them on canvas.
+- `click` + `keydown(Enter|Space)` → `onClick`
+- `input` (per keystroke from textbox elements) → `onInput`, with `e.value` carrying the new string
+
+Inline `font` + `line-height: 1` keep DOM glyph metrics aligned with the canvas rasterization. This is what makes screen readers, keyboard focus, IME, copy/paste, and forced-color modes Just Work — without re-implementing them on canvas.
+
+## Lab — per-component design surface
+
+`/lab/<story>` is where you tune a component's choreography before it lands in product code. Each story has Props / Forces / Choreography / Globals / Code tabs. State persists across stories so you can A/B-test "what does outBack feel like across all my components." See `site/lab/` and `site/lab/stories/` for the implementation.
 
 ## How `screean` dependency works
 

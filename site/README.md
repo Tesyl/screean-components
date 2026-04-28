@@ -23,12 +23,14 @@ site/
 | Path | Page |
 |------|------|
 | `/` | Landing |
-| `/components` | Storybook grid |
+| `/components` | Storybook grid (fields · composition · layout · forces · presets · type · choreography · components · easing) |
 | `/experiments` | Experiments index |
-| `/experiments/<name>` | Lazy-loaded per-component experiment |
-| `/components.html`, `/html-interop.html`, `/routing-demo.html` | Standalone demo entries (separate Vite multi-page entries, not SPA routes) |
+| `/experiments/<name>` | Lazy-loaded experiment (button · six-logo · flowfield · flowfield-gpu · controls) |
+| `/lab` | Component lab — auto-redirects to first story |
+| `/lab/<story>` | Per-component design surface — Props / Forces / Choreography / Globals / Code knobs (label · button · card · toggle · slider · checkbox · radio · text-field · image) |
+| `/components.html`, `/html-interop.html`, `/routing-demo.html`, `/legacy-demo.html` | Standalone demo entries (Vite multi-page; not SPA routes) |
 
-The original engine lab lives in the sibling `screean` repo (`pnpm dev` there opens it at `/`). The site is the components/showcase surface and consumes the engine through the `screean` package barrel.
+The original engine lab lives in the sibling `screean` repo (`pnpm dev` there opens it at `/`). The components lab here (`/lab/*`) is a different thing — a per-component design surface, not a generic particle-physics testbed.
 
 ## Stage — the embed primitive
 
@@ -77,10 +79,21 @@ If the file gets unwieldy, split each group's builder into `site/stories/<group>
 
 The site currently renders **Acid** for every route. Other themes live in the `THEMES` table for design history and are not removed because the components page's preset/palette demos still reference them through the engine's `feels` table.
 
+## Adding a new lab story
+
+The lab (`/lab/<story>`) is the per-component design surface. To add a story for a new component:
+
+1. Create `site/lab/stories/<componentName>.ts` exporting a `LabStory` with `name`, `title`, `blurb`, `defaultProps`, `propDefs` (knob metadata), `build(props, onActivate)` (returns a Component), and `codeTemplate` (snippet shown in the Code tab).
+2. Register it in `site/lab/registry.ts` — order in the array drives sidebar order.
+3. The framework wires Stage / scene / DOM mirror / dissolve. Story does NOT need to manage lifecycle.
+4. Wire the `onActivate` callback to the component's `onClick` / `onChange` so user clicks fire the dissolve choreography. Non-interactive components (label / card / image) skip this — the panel's "Trigger" button fires dissolve manually.
+
 ## Where to develop new UI experiments
 
-Today: add sections to the landing or tiles to the components page.
+Three paths, ordered by isolation:
 
-For more isolated prototyping, propose creating a `site/experiments/` directory + a `/experiments/<name>` route. The router is small enough to extend in <10 lines (see `router.ts`).
+1. **Lab story** — `site/lab/stories/<name>.ts`. Best for tuning per-component behavior (forces, choreography, props). Constrained: one component, knob-driven.
+2. **Experiment** — `site/experiments/<name>.ts` registered in `experiments/registry.ts`. Best for a self-contained interactive demo (controls grid, dissolve workflow, custom physics, glTF cloud). Free-form: full Stage + scene control.
+3. **Standalone demo** — top-level HTML at the package root (e.g. `routing-demo.html`) with its own `src/demos/<name>/main.ts`. Best for production-shaped flows (full-screen routing, multi-component layouts) that aren't SPA routes.
 
-The component layer staged in `to-move/src/components/` (button, label, pointerTracker, routePointerEvent) is the substrate built for screean-on-top UI. We have not promoted it into `site/` yet; doing so is the natural next step before building rich interactive demos.
+For most new component work, **start with a lab story**. Promote to an experiment when you need free-form interactivity beyond the lab's knob model.
