@@ -1673,6 +1673,54 @@ html { scroll-behavior: smooth; scroll-padding-top: 64px; }
   word-break: break-word;
 }
 
+/* GPU engine experiment — backend status pill in the aside.
+   Two rows: renderer + world, each tagged hot (active GPU) / cool
+   (graceful fallback). The hint line below describes the resolved tier.
+   Styled to match playground-knobs / pg-knob density without competing
+   for visual weight with the controls below. */
+.gpu-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.gpu-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.gpu-status-label {
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-size: 10px;
+}
+.gpu-status-value {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.gpu-status-value.hot {
+  color: rgb(168, 240, 168);
+  text-shadow: 0 0 12px rgba(168, 240, 168, 0.35);
+}
+.gpu-status-value.cool {
+  color: rgb(240, 195, 138);
+}
+.gpu-status-hint {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  font-style: italic;
+}
+
 /* ---- Responsive -------------------------------------------------------- */
 /* Bumped from 1080 to 1280 so portrait monitors (rotated 27" 1440p)
    get single-column layouts on the bigger reel/playground/experiment
