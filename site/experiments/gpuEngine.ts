@@ -27,6 +27,7 @@ import {
   createRendererAsync,
   WorldGPU,
   detectBudgetFromNavigator,
+  renderWorld,
   type IWorld,
   type Renderer,
   packRGBA,
@@ -221,9 +222,6 @@ export const mount = (root: HTMLElement): (() => void) => {
   let mesh: LoadedMesh | null = null;
   let raf = 0;
   let disposed = false;
-
-  // Adapter array reused frame-to-frame for GPU readback rendering.
-  const renderParticles: Particle[] = [];
 
   const init = async (): Promise<void> => {
     statusEl.textContent = 'loading 6ix logo + acquiring devices…';
@@ -445,32 +443,12 @@ export const mount = (root: HTMLElement): (() => void) => {
     // Step physics.
     world!.tick(dt);
 
-    // Render. CPU world: pass particles directly. GPU world: read shadow.
-    if (world!.backend === 'gpu') {
-      const gpu = world as WorldGPU;
-      await gpu.syncToShadow();
-      if (renderParticles.length !== gpu.count) {
-        renderParticles.length = 0;
-        for (let i = 0; i < gpu.count; i++) {
-          renderParticles.push({
-            x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0,
-            age: 0, life: 1, color: 0 as Color,
-            fieldId: null, weight: 1, z: 0, tz: 0, vz: 0,
-          });
-        }
-      }
-      for (let i = 0; i < gpu.count; i++) {
-        const p = gpu.getParticle(i);
-        const a = renderParticles[i]!;
-        a.x = p.x; a.y = p.y;
-        a.life = p.life;
-        a.color = p.color as unknown as Color;
-      }
-      renderer!.draw(renderParticles, W, H);
-    } else {
-      const cpu = world as IWorld & { particles: readonly Particle[] };
-      renderer!.draw(cpu.particles, W, H);
-    }
+    // Render via the engine's backend-agnostic helper. With WebGPU
+    // renderer + GPU world, this hits the M12 zero-readback fast path:
+    // the renderer reads particles directly from the WorldGPU storage
+    // buffer with no syncToShadow round-trip. With other pairings it
+    // falls back through sync+adapt → CPU draw automatically.
+    await renderWorld(renderer!, world!, W, H);
 
     // FPS readout.
     fpsAcc += dt;
