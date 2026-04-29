@@ -147,9 +147,12 @@ export const mount = (root: HTMLElement): (() => void) => {
 
   // ─── State ──────────────────────────────────────────────────────────────
   type State = {
-    rotY: number;
     rotX: number;
+    rotY: number;
+    rotZ: number;
+    rotXspeed: number;
     rotYspeed: number;
+    rotZspeed: number;
     cloudScale: number;
     perspective: number;
     particleCount: number;
@@ -160,9 +163,14 @@ export const mount = (root: HTMLElement): (() => void) => {
     pointCount: number;
   };
   const state: State = {
+    // rotX defaults to -π/2 to stand the Z-up Blender export upright;
+    // rotY/rotZ start at 0 (no rotation). Speeds are in radians per second.
+    rotX: -Math.PI / 2,
     rotY: 0,
-    rotX: -Math.PI / 2,         // stand the Z-up Blender export upright
+    rotZ: 0,
+    rotXspeed: 0,
     rotYspeed: DEFAULTS.rotYspeed,
+    rotZspeed: 0,
     cloudScale: DEFAULTS.cloudScale,
     perspective: DEFAULTS.perspective,
     particleCount: DEFAULTS.particleCount,
@@ -362,28 +370,40 @@ export const mount = (root: HTMLElement): (() => void) => {
     }
   };
 
-  // ─── Compose a 4×4 rotation matrix (Y then X) ───────────────────────────
-  // Same axis order as the JS projectAll: rotY first (around Y), then
-  // rotX (around X). Output is column-major to match WGSL mat4x4f layout.
-  // Returns 16 floats — pass directly to setTransform3D.
-  const composeRotXY = (rotX: number, rotY: number): Float32Array => {
+  // ─── Compose a 4×4 rotation matrix (Y, then X, then Z) ─────────────────
+  // Combined R = Rz · Rx · Ry — applied to a vec3 v as Rz(Rx(Ry(v))).
+  // Y first matches the auto-spin axis; X tilts (default -π/2 stands the
+  // Blender Z-up export upright); Z is roll around the camera axis.
+  // When rotZ = 0, this reduces to the previous Rx · Ry exactly.
+  // Output is column-major to match WGSL mat4x4f layout.
+  const composeRotXYZ = (
+    rotX: number,
+    rotY: number,
+    rotZ: number,
+  ): Float32Array => {
     const cx = Math.cos(rotX), sx = Math.sin(rotX);
     const cy = Math.cos(rotY), sy = Math.sin(rotY);
-    // Combined R = Rx * Ry. Worked out by hand:
+    const cz = Math.cos(rotZ), sz = Math.sin(rotZ);
+    // M = Rx · Ry (rows):
     //   row 0:  cy           0        sy        0
     //   row 1:  sx*sy        cx       -sx*cy    0
     //   row 2:  -cx*sy       sx       cx*cy     0
     //   row 3:  0            0        0         1
-    // Column-major flat layout (each column contiguous):
+    // Rz · M:
+    //   row 0:  cz*cy - sz*sx*sy,   -sz*cx,    cz*sy + sz*sx*cy,   0
+    //   row 1:  sz*cy + cz*sx*sy,    cz*cx,    sz*sy - cz*sx*cy,   0
+    //   row 2:  -cx*sy,               sx,       cx*cy,              0
+    //   row 3:  0,                    0,        0,                  1
+    // Column-major flat (each column contiguous):
     return new Float32Array([
       // col 0
-      cy,        sx * sy,   -cx * sy,  0,
+      cz * cy - sz * sx * sy,   sz * cy + cz * sx * sy,   -cx * sy,        0,
       // col 1
-      0,         cx,        sx,        0,
+      -sz * cx,                 cz * cx,                  sx,              0,
       // col 2
-      sy,        -sx * cy,  cx * cy,   0,
+      cz * sy + sz * sx * cy,   sz * sy - cz * sx * cy,   cx * cy,         0,
       // col 3
-      0,         0,         0,         1,
+      0,                        0,                        0,               1,
     ]);
   };
 
@@ -435,8 +455,10 @@ export const mount = (root: HTMLElement): (() => void) => {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
 
-    // Animate rotation.
+    // Animate rotation on all three axes.
+    state.rotX += state.rotXspeed * dt;
     state.rotY += state.rotYspeed * dt;
+    state.rotZ += state.rotZspeed * dt;
 
     // Push transform into the world.
     if (world!.backend === 'gpu') {
@@ -446,7 +468,7 @@ export const mount = (root: HTMLElement): (() => void) => {
       // rotate + perspective-project + write-target work for every
       // particle in one compute pass — zero per-frame readback or upload
       // beyond the matrix itself.
-      const matrix = composeRotXY(state.rotX, state.rotY);
+      const matrix = composeRotXYZ(state.rotX, state.rotY, state.rotZ);
       gpu.setTransform3D({
         matrix,
         viewport: { w: W, h: H },
@@ -473,6 +495,19 @@ export const mount = (root: HTMLElement): (() => void) => {
         state.perspective,
         W, H,
       );
+      // Apply Z roll in screen space (cheap post-processing rotation
+      // around the canvas center). Same axis convention as the GPU path.
+      if (state.rotZ !== 0) {
+        const cz = Math.cos(state.rotZ);
+        const sz = Math.sin(state.rotZ);
+        const cx = W / 2, cy = H / 2;
+        for (let i = 0; i < state.pointCount; i++) {
+          const dx = targets[i * 2]! - cx;
+          const dy = targets[i * 2 + 1]! - cy;
+          targets[i * 2] = cx + dx * cz - dy * sz;
+          targets[i * 2 + 1] = cy + dx * sz + dy * cz;
+        }
+      }
       const cpu = world as IWorld & { particles: Particle[] };
       for (let i = 0; i < state.pointCount && i < cpu.particles.length; i++) {
         cpu.particles[i]!.tx = targets[i * 2]!;
@@ -555,9 +590,19 @@ export const mount = (root: HTMLElement): (() => void) => {
       },
     },
     {
+      label: 'rotation X', min: -1.5, max: 1.5, step: 0.05,
+      initial: 0,
+      apply: (v) => { state.rotXspeed = v; },
+    },
+    {
       label: 'rotation Y', min: -1.5, max: 1.5, step: 0.05,
       initial: DEFAULTS.rotYspeed,
       apply: (v) => { state.rotYspeed = v; },
+    },
+    {
+      label: 'rotation Z', min: -1.5, max: 1.5, step: 0.05,
+      initial: 0,
+      apply: (v) => { state.rotZspeed = v; },
     },
     {
       label: 'cloud scale', min: 0.4, max: 1.8, step: 0.05,
@@ -592,8 +637,12 @@ export const mount = (root: HTMLElement): (() => void) => {
   };
 
   resetBtn.addEventListener('click', () => {
+    state.rotX = -Math.PI / 2;
     state.rotY = 0;
+    state.rotZ = 0;
+    state.rotXspeed = 0;
     state.rotYspeed = DEFAULTS.rotYspeed;
+    state.rotZspeed = 0;
     state.cloudScale = DEFAULTS.cloudScale;
     state.springK = DEFAULTS.springK;
     state.springC = DEFAULTS.springC;
