@@ -315,6 +315,11 @@ export const mount = (root: HTMLElement): (() => void) => {
         });
       }
       gpu.setParticles(ps);
+      // Upload anchors ONCE — the 3D mesh-local point cloud lives on
+      // GPU forever. Per-frame target updates become a 64-byte rotation
+      // matrix uniform (see tick loop below), saving 8 MB/frame at 1M
+      // particles.
+      gpu.setAnchors3D(cloud);
       gpu.setForces(['drag', 'spring', 'point'], {
         drag: state.drag,
         springK: state.springK,
@@ -355,6 +360,31 @@ export const mount = (root: HTMLElement): (() => void) => {
         pointForce(() => cursor, 0, 30),
       ]);
     }
+  };
+
+  // ─── Compose a 4×4 rotation matrix (Y then X) ───────────────────────────
+  // Same axis order as the JS projectAll: rotY first (around Y), then
+  // rotX (around X). Output is column-major to match WGSL mat4x4f layout.
+  // Returns 16 floats — pass directly to setTransform3D.
+  const composeRotXY = (rotX: number, rotY: number): Float32Array => {
+    const cx = Math.cos(rotX), sx = Math.sin(rotX);
+    const cy = Math.cos(rotY), sy = Math.sin(rotY);
+    // Combined R = Rx * Ry. Worked out by hand:
+    //   row 0:  cy           0        sy        0
+    //   row 1:  sx*sy        cx       -sx*cy    0
+    //   row 2:  -cx*sy       sx       cx*cy     0
+    //   row 3:  0            0        0         1
+    // Column-major flat layout (each column contiguous):
+    return new Float32Array([
+      // col 0
+      cy,        sx * sy,   -cx * sy,  0,
+      // col 1
+      0,         cx,        sx,        0,
+      // col 2
+      sy,        -sx * cy,  cx * cy,   0,
+      // col 3
+      0,         0,         0,         1,
+    ]);
   };
 
   // ─── Projection ────────────────────────────────────────────────────────
@@ -408,23 +438,22 @@ export const mount = (root: HTMLElement): (() => void) => {
     // Animate rotation.
     state.rotY += state.rotYspeed * dt;
 
-    // Project all points to current 2D targets.
-    const targets = projectAll(
-      state.points,
-      state.rotY,
-      state.rotX,
-      state.cloudScale,
-      state.perspective,
-      W, H,
-    );
-
-    // Push targets into the world.
+    // Push transform into the world.
     if (world!.backend === 'gpu') {
       const gpu = world as WorldGPU;
-      // Bulk-update targets via the GPU-side aux-buffer + copy-kernel
-      // path. Avoids the (lo, hi) dirty-span corruption that per-particle
-      // queueTarget would hit when the CPU shadow drifts from the GPU.
-      gpu.setAllTargets(targets);
+      // Compose the 4×4 rotation matrix on CPU (16 floats), push as a
+      // 64-byte uniform. The GPU's project-anchors kernel does the
+      // rotate + perspective-project + write-target work for every
+      // particle in one compute pass — zero per-frame readback or upload
+      // beyond the matrix itself.
+      const matrix = composeRotXY(state.rotX, state.rotY);
+      gpu.setTransform3D({
+        matrix,
+        viewport: { w: W, h: H },
+        perspective: state.perspective,
+        modelDepth: DEFAULTS.modelDepth,
+        scale: state.cloudScale,
+      });
       // Mild cursor attractor — pulls particles slightly toward the
       // pointer. Real scatter is a click-fired velocity impulse handled
       // by the pointerdown listener, not by this force.
@@ -434,6 +463,16 @@ export const mount = (root: HTMLElement): (() => void) => {
         pointY: cursor.y,
       });
     } else {
+      // CPU fallback path stays on the JS projectAll loop — the engine's
+      // CPU `World` doesn't have an anchor-driven target source (yet).
+      const targets = projectAll(
+        state.points,
+        state.rotY,
+        state.rotX,
+        state.cloudScale,
+        state.perspective,
+        W, H,
+      );
       const cpu = world as IWorld & { particles: Particle[] };
       for (let i = 0; i < state.pointCount && i < cpu.particles.length; i++) {
         cpu.particles[i]!.tx = targets[i * 2]!;
