@@ -27,3 +27,11 @@ export type { ChoreoRunner, ChoreoRunnerDeps, PipelineHandle, TriggerHandle } fr
 export { createChoreoRunner } from './runner';
 
 export { onEvent, onState } from './trigger';
+
+// ─── Effect primitives ─────────────────────────────────────────────────────
+export { dissolve, type DissolveOpts } from './effects/dissolve';
+export { popTo3D, type PopTo3DEffectOpts } from './effects/popTo3D';
+export { kick, type KickOpts } from './effects/kick';
+export { pop, type PopOpts } from './effects/pop';
+export { setColor, type SetColorOpts } from './effects/setColor';
+export { perlinGlitch, type PerlinGlitchOpts } from './effects/perlinGlitch';

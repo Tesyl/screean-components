@@ -31,6 +31,11 @@ export type EffectCtx = {
   t: number;
   // Milliseconds since the previous frame for this stage.
   dt: number;
+  // Per-stage, per-handle scratch space. The runner allocates a fresh empty
+  // object per stage on first tick; effects mutate it across ticks. Two
+  // concurrent handles for the same pipeline get independent state objects,
+  // so cycle data (captured starts, mirror divs) doesn't leak between runs.
+  state: Record<string, unknown>;
 };
 
 export type Effect = {
