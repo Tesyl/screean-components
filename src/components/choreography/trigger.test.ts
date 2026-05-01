@@ -66,6 +66,7 @@ const setup = () => {
 const counter = (duration: number): Effect & { count: () => number } => {
   let calls = 0;
   return {
+    scope: 'particle',
     duration,
     tick: () => {
       calls++;

@@ -15,6 +15,7 @@ export type SetColorOpts = {
 };
 
 export const setColor = (opts: SetColorOpts): Effect => ({
+  scope: 'particle',
   duration: 0,
   tick: (indices, ctx) => {
     for (const i of indices) {

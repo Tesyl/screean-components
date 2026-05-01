@@ -66,6 +66,7 @@ const counter = (
   let calls = 0;
   let ended = false;
   return {
+    scope: 'particle',
     duration,
     tick: () => {
       calls++;
@@ -164,6 +165,7 @@ describe('createChoreoRunner', () => {
     runner.tick(0);
     const seenT: number[] = [];
     const e: Effect = {
+      scope: 'particle',
       duration: 50,
       tick: (_, ctx) => seenT.push(ctx.t),
     };

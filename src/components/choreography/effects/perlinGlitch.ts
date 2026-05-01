@@ -38,6 +38,7 @@ const hasPerlinGlitch = (w: unknown): w is GpuWorld =>
   typeof (w as GpuWorld).applyPerlinGlitch === 'function';
 
 export const perlinGlitch = (opts: PerlinGlitchOpts): Effect => ({
+  scope: 'world',
   duration: opts.durationMs,
   tick: (_indices, ctx) => {
     // Fire once at t=0; the engine drives the rest of the burst across its

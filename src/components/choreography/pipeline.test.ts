@@ -9,6 +9,7 @@ const recorder = (
   const calls: Array<{ t: number; dt: number }> = [];
   let ended = false;
   return {
+    scope: 'particle',
     duration,
     tick: (_, ctx) => calls.push({ t: ctx.t, dt: ctx.dt }),
     onEnd: () => {
@@ -127,4 +128,11 @@ it('EffectCtx accepts the documented surface', () => {
     state: {},
   };
   expect(ctx.t).toBe(0);
+});
+
+it('EffectScope discriminant is exported and types primitives correctly', () => {
+  // Compile-time assertion via construction — if scope drifts off the union
+  // the assignment fails to type-check.
+  const e: Effect = { scope: 'particle', duration: 0, tick: () => {} };
+  expect(e.scope).toBe('particle');
 });

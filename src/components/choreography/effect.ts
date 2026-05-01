@@ -38,7 +38,19 @@ export type EffectCtx = {
   state: Record<string, unknown>;
 };
 
+// What an effect touches. Runtime metadata only — pipelines stay polymorphic
+// and the runner ignores scope. Used by the lab UI, documentation generators,
+// and static analyzers to surface "this effect ignores group indices" or
+// "this effect needs ctx.component" without an out-of-band convention.
+//
+//   particle  — per-index writes (color, position, target, life). NEEDS group.
+//   spatial   — geometric pass; indices act as a filter. Reads centroid.
+//   world     — global state / engine-level pass. Indices typically ignored.
+//   mirror    — DOM mirror element write; reads ctx.component for the target.
+export type EffectScope = 'particle' | 'spatial' | 'world' | 'mirror';
+
 export type Effect = {
+  scope: EffectScope;
   tick: (indices: readonly number[], ctx: EffectCtx) => void;
   // Called exactly once per stage at end-of-life. Optional — most effects
   // don't need to restore anything.
@@ -47,7 +59,9 @@ export type Effect = {
 };
 
 // Tiny helper for consumers building one-off instant effects inline.
-// Returns a fresh Effect; pure factory.
+// Returns a fresh Effect; pure factory. Defaults to particle scope; pass an
+// explicit scope when the inline body touches anything else.
 export const makeInstantEffect = (
   tick: Effect['tick'],
-): Effect => ({ tick, duration: 0 });
+  scope: EffectScope = 'particle',
+): Effect => ({ tick, duration: 0, scope });

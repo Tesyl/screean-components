@@ -25,6 +25,7 @@ const POP_DURATION_MS = 400;
 const STRENGTH_BASE = 350;
 
 export const pop = (opts: PopOpts = {}): Effect => ({
+  scope: 'spatial',
   duration: POP_DURATION_MS,
   tick: (indices, ctx) => {
     // Apply impulse only on first tick — subsequent frames let the spring

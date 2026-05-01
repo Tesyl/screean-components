@@ -72,10 +72,6 @@ type StageRuntime = {
   ended: boolean;
   lastTickAt: number;  // pipeline-time of previous tick — used for dt math
   indices: readonly number[];
-  // Per-stage scratch space exposed to effects via ctx.state. Allocated
-  // empty per handle so concurrent runs of the same pipeline don't share
-  // mutable cycle data (e.g. dissolve's captured starts).
-  state: Record<string, unknown>;
 };
 
 const buildHandle = (
@@ -84,6 +80,11 @@ const buildHandle = (
   startNow: number,
   buildCtx: (stageT: number, stageDt: number, state: Record<string, unknown>) => EffectCtx,
 ): PipelineHandle => {
+  // Pipeline stages share one state object per handle. This lets the recipe
+  // pattern work (captureStarts writes a key, easeToTargets reads the same
+  // key from a later stage). Concurrent handles for the same pipeline get
+  // independent shared-state objects, so cycles don't cross-contaminate.
+  const handleState: Record<string, unknown> = {};
   const runtimes: StageRuntime[] = pipeline.stages.map((s) => ({
     effect: s.effect,
     startMs: s.startMs,
@@ -91,7 +92,6 @@ const buildHandle = (
     ended: false,
     lastTickAt: 0,
     indices,
-    state: {},
   }));
   let cancelled = false;
 
@@ -114,7 +114,7 @@ const buildHandle = (
       // Instant effects (duration 0): tick once at activation, then mark ended
       // so the runner stops calling them. onEnd still fires for symmetry.
       if (r.effect.duration === 0) {
-        const ctx = buildCtx(0, 0, r.state);
+        const ctx = buildCtx(0, 0, handleState);
         r.effect.tick(r.indices, ctx);
         r.ended = true;
         if (r.effect.onEnd) r.effect.onEnd(r.indices, ctx);
@@ -124,12 +124,12 @@ const buildHandle = (
       // Temporal effects: tick with clamped t (so the last frame writes the
       // exact end-state at duration); fire onEnd when crossing the boundary.
       if (stageT >= r.effect.duration) {
-        const ctxFinal = buildCtx(r.effect.duration, dtStage, r.state);
+        const ctxFinal = buildCtx(r.effect.duration, dtStage, handleState);
         r.effect.tick(r.indices, ctxFinal);
         r.ended = true;
         if (r.effect.onEnd) r.effect.onEnd(r.indices, ctxFinal);
       } else {
-        const ctx = buildCtx(stageT, dtStage, r.state);
+        const ctx = buildCtx(stageT, dtStage, handleState);
         r.effect.tick(r.indices, ctx);
       }
     }
@@ -149,7 +149,7 @@ const buildHandle = (
         if (r.effect.onEnd) {
           // Use a synthetic ctx — at-cancellation t is wherever the stage was
           // last ticked; dt is 0 because no frame elapsed since last advance.
-          const ctx = buildCtx(0, 0, r.state);
+          const ctx = buildCtx(0, 0, handleState);
           r.effect.onEnd(r.indices, ctx);
         }
       }

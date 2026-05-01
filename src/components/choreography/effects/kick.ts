@@ -22,6 +22,7 @@ export type KickOpts = {
 };
 
 export const kick = (opts: KickOpts = {}): Effect => ({
+  scope: 'spatial',
   duration: 0,
   tick: (indices, ctx) => {
     if (indices.length === 0) return;

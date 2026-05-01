@@ -1,35 +1,40 @@
-// Dissolve — pipeline-friendly Effect that turns the component's particles
-// into a radial burst, lets them roam, eases them back to their targets,
-// and crossfades the DOM mirror back in.
+// Dissolve — pipeline-friendly Effect. Now a RECIPE built from atomic
+// primitives, not a monolith.
 //
-// Pure factory: takes timing/feel opts, returns an Effect. State for each
-// active cycle lives in ctx.state (allocated per handle by the runner), so
-// concurrent runs of the same pipeline are independent.
+// Composition (P15.7.1 Phase A):
+//   pipe(
+//     setMirrorOpacity({ to: 0 }),
+//     setMirrorPointerEvents({ to: 'none' }),
+//     kick({ ... }),
+//     wait(particlePhaseMs),
+//     captureStarts({ key: 'dissolveStart' }),
+//     easeToTargets({ duration: returnMs, easing, fromKey: 'dissolveStart' }),
+//     pinToTargets(),
+//     setMirrorOpacity({ to: 1 }),
+//     setMirrorPointerEvents({ to: 'auto' }),
+//     wait(fadeMs),
+//   );
 //
-// What this does NOT do (intentionally):
-//   - Color paint. Compose with setColor before/after if you want particles
-//     visible during the cycle.
-//   - Trigger glue. Use onEvent / applyDefaultChoreography to fire the
-//     pipeline; this is the motion primitive only.
+// Public surface unchanged: `dissolve(opts)` returns an Effect with the same
+// opts shape as before. The wrapper Effect (collapsePipelineToEffect) is what
+// makes the recipe addressable as a single drop-in pipeline stage.
 //
 // Relationship to dom/dissolveAndReform.ts (legacy createDissolve):
-// Two parallel implementations of the same conceptual primitive. The legacy
-// shim's per-frame body uses transition-relative timing (`since` resets at
-// each phase change); this Effect uses cycle-relative time (t from runner).
-// They produce the same end-state but differ in exact lerp values during
-// the returning phase under irregular tick cadences. The legacy's 14 tests
-// assert specific tick boundary behavior that is incompatible with the
-// cleaner t-relative model — they stay untouched. The dissolveCore helpers
-// live so a future v1.5 can unify, but for v1 the duplication is intentional.
+// Two parallel implementations of the same conceptual primitive — that file's
+// 14 historical tests assert exact tick boundaries using transition-relative
+// `since` timestamps which are incompatible with the cleaner cycle-elapsed
+// model here. Untouched.
 
-import { easing as curves, radialImpulse, type Easing } from 'screean';
+import { easing as curves, type Easing } from 'screean';
 import type { Effect } from '../effect';
-import {
-  dissolveStep,
-  phaseAt,
-  type DissolveCycleState,
-  type DissolveCycleConfig,
-} from './dissolveCore';
+import { pipe } from '../pipeline';
+import { collapsePipelineToEffect } from './_recipe';
+import { kick } from './kick';
+import { wait } from './wait';
+import { captureStarts } from './captureStarts';
+import { easeToTargets } from './easeToTargets';
+import { pinToTargets } from './pinToTargets';
+import { setMirrorOpacity, setMirrorPointerEvents } from './setMirror';
 
 export type DissolveOpts = {
   particlePhaseMs?: number;
@@ -40,84 +45,32 @@ export type DissolveOpts = {
   burstSoftness?: number;
 };
 
-// Internal state shape kept in ctx.state. Augments DissolveCycleState with
-// DOM mirror handles + initialization flags. Cast on every read.
-type State = DissolveCycleState & {
-  initialized: boolean;
-  div: HTMLDivElement | null;
-};
-
-const findMirrorDiv = (
-  host: HTMLElement,
-  componentId: string | undefined,
-): HTMLDivElement | null => {
-  if (!componentId) return null;
-  return host.querySelector<HTMLDivElement>(
-    `[data-component-id="${componentId}"]`,
-  );
-};
+const DISSOLVE_STATE_KEY = 'dissolveStart';
 
 export const dissolve = (opts: DissolveOpts = {}): Effect => {
-  const cfg: DissolveCycleConfig = {
-    particlePhaseMs: opts.particlePhaseMs ?? 1500,
-    returnMs: opts.returnMs ?? 500,
-    fadeMs: opts.fadeMs ?? 220,
-    returnEasing: opts.returnEasing ?? curves.outCubic,
-  };
+  const particlePhaseMs = opts.particlePhaseMs ?? 1500;
+  const returnMs = opts.returnMs ?? 500;
+  const fadeMs = opts.fadeMs ?? 220;
+  const returnEasing = opts.returnEasing ?? curves.outCubic;
   const burstKick = opts.burstKick ?? 420;
   const burstSoftness = opts.burstSoftness ?? 0.12;
-  const total = cfg.particlePhaseMs + cfg.returnMs + cfg.fadeMs;
 
-  return {
-    duration: total,
-    tick: (indices, ctx) => {
-      const state = ctx.state as unknown as State;
+  const recipe = pipe(
+    setMirrorOpacity({ to: 0 }),
+    setMirrorPointerEvents({ to: 'none' }),
+    kick({ strength: burstKick, softness: burstSoftness }),
+    wait(particlePhaseMs),
+    captureStarts({ key: DISSOLVE_STATE_KEY }),
+    easeToTargets({
+      duration: returnMs,
+      easing: returnEasing,
+      fromKey: DISSOLVE_STATE_KEY,
+    }),
+    pinToTargets(),
+    setMirrorOpacity({ to: 1 }),
+    setMirrorPointerEvents({ to: 'auto' }),
+    wait(fadeMs),
+  );
 
-      // First-tick init: locate mirror div, hide it, fire the burst kick.
-      if (!state.initialized) {
-        state.initialized = true;
-        state.startsX = null;
-        state.startsY = null;
-        state.div = findMirrorDiv(
-          ctx.mirrorHost,
-          ctx.component?._component.id,
-        );
-        if (state.div) {
-          state.div.style.opacity = '0';
-          state.div.style.pointerEvents = 'none';
-        }
-        const rect = state.div?.getBoundingClientRect();
-        const origin = rect
-          ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-          : { x: 0, y: 0 };
-        radialImpulse(ctx.particles, {
-          origin,
-          kick: burstKick,
-          softness: burstSoftness,
-          indices,
-        });
-      }
-
-      // Run the pure per-frame body.
-      dissolveStep(indices, ctx.particles, ctx.t, cfg, state);
-
-      // Crossfade mirror back in once we cross into the reforming phase.
-      const phase = phaseAt(ctx.t, cfg);
-      if (phase === 'reforming' || phase === 'done') {
-        if (state.div && state.div.style.opacity !== '1') {
-          state.div.style.opacity = '1';
-          state.div.style.pointerEvents = 'auto';
-        }
-      }
-    },
-    onEnd: (_indices, ctx) => {
-      // Cancellation safety: if we never made it to the reforming phase, the
-      // mirror would otherwise stay invisible. Restore unconditionally.
-      const state = ctx.state as unknown as State;
-      if (state.div) {
-        state.div.style.opacity = '1';
-        state.div.style.pointerEvents = 'auto';
-      }
-    },
-  };
+  return collapsePipelineToEffect(recipe, 'particle');
 };

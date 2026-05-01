@@ -83,8 +83,9 @@ describe('applyDefaultChoreography', () => {
   it('per-instance override beats registry for that event only', () => {
     let kickedIndices: readonly number[] | null = null;
     const recorder = pipe({
+      scope: 'particle' as const,
       duration: 0,
-      tick: (indices) => {
+      tick: (indices: readonly number[]) => {
         kickedIndices = indices;
       },
     });
