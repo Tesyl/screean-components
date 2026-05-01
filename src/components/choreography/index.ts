@@ -45,6 +45,12 @@ export { pinToTargets } from './effects/pinToTargets';
 // Spatial primitives.
 export { kick, type KickOpts } from './effects/kick';
 export { pop, type PopOpts } from './effects/pop';
+// Spatial transforms.
+export { gather, type GatherOpts, type GatherTo } from './effects/gather';
+export { spread, type SpreadOpts } from './effects/spread';
+export { rotate, type RotateOpts, type RotateAround } from './effects/rotate';
+export { scale, type ScaleOpts, type ScaleAround } from './effects/scale';
+export { teleport, type TeleportOpts } from './effects/teleport';
 // World primitives.
 export { perlinGlitch, type PerlinGlitchOpts } from './effects/perlinGlitch';
 // Compound recipes (built on top of atoms via collapsePipelineToEffect).
