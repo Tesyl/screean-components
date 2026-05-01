@@ -53,6 +53,16 @@ export { popTo3D, type PopTo3DEffectOpts } from './effects/popTo3D';
 // Recipe builder — exported so user-defined recipes can use it too.
 export { collapsePipelineToEffect } from './effects/_recipe';
 
+// ─── Combinators ───────────────────────────────────────────────────────────
+export {
+  parallel,
+  narrow,
+  loop,
+  when,
+  stretch,
+  type LoopOpts,
+} from './combinators';
+
 // ─── Default choreography ──────────────────────────────────────────────────
 export { defaultChoreography, type ChoreoMap, type StatePair } from './defaults';
 export { applyDefaultChoreography } from './apply';

@@ -14,8 +14,11 @@ import { centroidOf } from './_geom';
 export type PopOpts = {
   // Peak impulse magnitude. 0–1 is "subtle"; 0.5+ is "punchy". Default 0.4.
   intensity?: number;
-  // Optional subpart name to re-resolve inside tick (slider.thumb,
-  // button.chrome). When omitted, operates on the indices passed in.
+  /**
+   * @deprecated Use `narrow('part', pop({...}))` instead. The combinator
+   * pattern is the standard way to scope effects to subparts; this opt
+   * lingers for backward compat and will be removed in a future minor.
+   */
   part?: string;
   // Falloff softness (passed to radialImpulse). Smaller = harder.
   softness?: number;

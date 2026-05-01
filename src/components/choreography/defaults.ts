@@ -11,6 +11,7 @@ import type { Pipeline } from './pipeline';
 import { pipe, at } from './pipeline';
 import { dissolve } from './effects/dissolve';
 import { pop } from './effects/pop';
+import { narrow } from './combinators';
 
 // State-trigger keys are conventionally "while<Capitalized>". The resolver
 // inspects keys for this prefix and routes them to onState; everything else
@@ -32,19 +33,19 @@ export const defaultChoreography: Partial<Record<AriaRole, ChoreoMap>> = {
     ),
   },
   switch: {
-    onChange: pipe(pop({ part: 'knob', intensity: 0.6 })),
+    onChange: pipe(narrow('knob', pop({ intensity: 0.6 }))),
   },
   slider: {
-    onChange: pipe(pop({ part: 'thumb', intensity: 0.2 })),
+    onChange: pipe(narrow('thumb', pop({ intensity: 0.2 }))),
     // whileDragging: { enter, exit } would set/clear thumb trails, but slider
     // drag tracking is blocked on P14 — entry omitted from v1 so the runner
     // doesn't poll a predicate that always returns false. Re-add when the
     // dragging axis lands on ComponentInternals.
   },
   checkbox: {
-    onChange: pipe(pop({ part: 'check', intensity: 0.5 })),
+    onChange: pipe(narrow('check', pop({ intensity: 0.5 }))),
   },
   radio: {
-    onChange: pipe(pop({ part: 'dot', intensity: 0.5 })),
+    onChange: pipe(narrow('dot', pop({ intensity: 0.5 }))),
   },
 };
