@@ -16,6 +16,7 @@ import {
   type SceneNode,
 } from 'screean';
 import { component } from '../component';
+import { setPart } from '../choreography/parts';
 import type {
   Component,
   Handler,
@@ -52,27 +53,33 @@ export const slider = (opts: SliderOpts): Component => {
   // but the visual is always the track-relative ratio.
   const t = max > min ? (value - min) / (max - min) : 0;
 
-  const track = node(rect({ w: width, h: height, radius: height / 2 }), { z: 0 });
+  const track = setPart(node(rect({ w: width, h: height, radius: height / 2 }), { z: 0 }), 'track');
 
   // Filled portion: rounded rect from the track's left edge to the thumb's
   // x. Width can't go below `height` or the rounded ends would self-overlap
   // weirdly; clamp at height for visual integrity at value=0.
   const fillW = Math.max(height, t * width);
-  const fill = node(
-    roundedRectField({
-      x: 0,
-      y: 0,
-      w: fillW,
-      h: height,
-      radius: height / 2,
-    }),
-    { z: 1 },
+  const fill = setPart(
+    node(
+      roundedRectField({
+        x: 0,
+        y: 0,
+        w: fillW,
+        h: height,
+        radius: height / 2,
+      }),
+      { z: 1 },
+    ),
+    'fill',
   );
 
   // Thumb: circle at the value's x along the track's centerline.
-  const thumb = node(
-    circleField({ cx: t * width, cy: height / 2, r: thumbR }),
-    { z: 2 },
+  const thumb = setPart(
+    node(
+      circleField({ cx: t * width, cy: height / 2, r: thumbR }),
+      { z: 2 },
+    ),
+    'thumb',
   );
 
   // Manual composition — explicit child positions, not stack auto-centering.

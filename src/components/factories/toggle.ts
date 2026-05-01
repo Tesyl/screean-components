@@ -12,6 +12,7 @@
 
 import { node, rect, circleField, type SceneNode } from 'screean';
 import { component } from '../component';
+import { setPart } from '../choreography/parts';
 import type {
   Component,
   Handler,
@@ -40,7 +41,7 @@ export const toggle = (opts: ToggleOpts): Component => {
   // Track: rounded rect at the component's local origin (the scene-sugar
   // `rect()` is zero-anchored — the layout system / parent stack
   // positions it).
-  const track = node(rect({ w: width, h: height, radius: height / 2 }), { z: 0 });
+  const track = setPart(node(rect({ w: width, h: height, radius: height / 2 }), { z: 0 }), 'track');
 
   // Thumb: a circle field at an explicit position. circleField (raw field)
   // takes cx/cy directly — using it instead of the scene-sugar `circle()`
@@ -49,7 +50,7 @@ export const toggle = (opts: ToggleOpts): Component => {
     ? width - height / 2 // right edge: center one (height/2) in from the right
     : height / 2; // left edge: center one (height/2) in from the left
   const cy = height / 2;
-  const thumb = node(circleField({ cx, cy, r: thumbR }), { z: 1 });
+  const thumb = setPart(node(circleField({ cx, cy, r: thumbR }), { z: 1 }), 'knob');
 
   // Manual composition (not stack) — stack auto-centers children, but the
   // thumb must sit at an explicit cx based on `on`. Container's intrinsic

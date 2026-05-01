@@ -13,6 +13,7 @@
 
 import { node, rect, stack, text, type SceneNode } from 'screean';
 import { component } from '../component';
+import { setPart } from '../choreography/parts';
 import type { BaseComponentOpts, Component, SizedOpts } from '../types';
 
 export type CardOpts = BaseComponentOpts &
@@ -32,12 +33,12 @@ export const card = (opts: CardOpts): Component => {
   const bodyFont =
     opts.bodyFont ?? '400 13px system-ui, -apple-system, sans-serif';
 
-  const chrome = node(rect({ w: width, h: height, radius }), { z: 0 });
+  const chrome = setPart(node(rect({ w: width, h: height, radius }), { z: 0 }), 'chrome');
   // Two text children stacked vertically inside the chrome. A nested stack
   // for the text column auto-centers them as a pair; the outer stack centers
   // that column on the chrome.
-  const titleLeaf = node(text({ text: opts.title, font: titleFont }), { z: 1 });
-  const bodyLeaf = node(text({ text: opts.body, font: bodyFont }), { z: 1 });
+  const titleLeaf = setPart(node(text({ text: opts.title, font: titleFont }), { z: 1 }), 'title');
+  const bodyLeaf = setPart(node(text({ text: opts.body, font: bodyFont }), { z: 1 }), 'body');
   const textColumn: SceneNode = stack([titleLeaf, bodyLeaf], { z: 1 });
 
   const container = stack([chrome, textColumn], { z: opts.z ?? 0 });

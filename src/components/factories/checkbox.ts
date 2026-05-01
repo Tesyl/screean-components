@@ -8,6 +8,7 @@
 
 import { node, rect, type SceneNode } from 'screean';
 import { component } from '../component';
+import { setPart } from '../choreography/parts';
 import type {
   Component,
   Handler,
@@ -31,7 +32,7 @@ export const checkbox = (opts: CheckboxOpts): Component => {
   const radius = opts.radius ?? 4;
 
   // Outer chrome — small rounded square, the click target.
-  const chrome = node(rect({ w, h, radius }), { z: 0 });
+  const chrome = setPart(node(rect({ w, h, radius }), { z: 0 }), 'box');
 
   // Inner mark — drawn only when checked or mixed. For checked we use a
   // smaller filled rect (a check glyph would need text rasterization for
@@ -40,17 +41,23 @@ export const checkbox = (opts: CheckboxOpts): Component => {
   const children: SceneNode[] = [chrome];
   if (opts.checked === true) {
     const inset = Math.max(4, Math.round(w * 0.22));
-    const mark = node(
-      rect({ w: w - inset * 2, h: h - inset * 2, radius: Math.max(1, radius - 2) }),
-      { z: 1 },
+    const mark = setPart(
+      node(
+        rect({ w: w - inset * 2, h: h - inset * 2, radius: Math.max(1, radius - 2) }),
+        { z: 1 },
+      ),
+      'check',
     );
     children.push(mark);
   } else if (opts.checked === 'mixed') {
     const inset = Math.max(4, Math.round(w * 0.22));
     const slabH = Math.max(2, Math.round(h * 0.18));
-    const mark = node(
-      rect({ w: w - inset * 2, h: slabH, radius: 1 }),
-      { z: 1 },
+    const mark = setPart(
+      node(
+        rect({ w: w - inset * 2, h: slabH, radius: 1 }),
+        { z: 1 },
+      ),
+      'check',
     );
     children.push(mark);
   }

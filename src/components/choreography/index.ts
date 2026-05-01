@@ -35,3 +35,7 @@ export { kick, type KickOpts } from './effects/kick';
 export { pop, type PopOpts } from './effects/pop';
 export { setColor, type SetColorOpts } from './effects/setColor';
 export { perlinGlitch, type PerlinGlitchOpts } from './effects/perlinGlitch';
+
+// ─── Default choreography ──────────────────────────────────────────────────
+export { defaultChoreography, type ChoreoMap, type StatePair } from './defaults';
+export { applyDefaultChoreography } from './apply';

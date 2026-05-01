@@ -68,7 +68,7 @@ const setup = () => {
   w.particles[5].y = 5;
   const runner = createChoreoRunner({
     scene: s,
-    world: w,
+    world: w as unknown as Parameters<typeof createChoreoRunner>[0]["world"],
     particles: w.particles,
     mirrorHost: document.createElement('div'),
   });

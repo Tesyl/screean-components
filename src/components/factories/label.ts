@@ -7,6 +7,7 @@
 
 import { node, text, type SceneNode } from 'screean';
 import { component } from '../component';
+import { setPart } from '../choreography/parts';
 import type { BaseComponentOpts, Component } from '../types';
 
 export type LabelOpts = Pick<BaseComponentOpts, 'id'> & {
@@ -37,7 +38,7 @@ const defaultFontFor = (role: 'heading' | 'text'): string =>
 export const label = (opts: LabelOpts): Component => {
   const role = opts.ariaRole ?? 'text';
   const font = opts.font ?? defaultFontFor(role);
-  const leaf = node(text({ text: opts.label, font }), { z: opts.z ?? 0 });
+  const leaf = setPart(node(text({ text: opts.label, font }), { z: opts.z ?? 0 }), 'text');
   return component(leaf as SceneNode, {
     id: opts.id,
     ariaRole: role,

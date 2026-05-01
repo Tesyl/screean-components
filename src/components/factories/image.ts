@@ -16,6 +16,7 @@
 
 import { node, bitmapField, type BitmapSource, type SceneNode } from 'screean';
 import { component } from '../component';
+import { setPart } from '../choreography/parts';
 import type { BaseComponentOpts, Component, SizedOpts } from '../types';
 
 export type ImageSource =
@@ -81,7 +82,7 @@ export const image = (opts: ImageOpts): Component => {
 
   // Wrap the field in a node with intrinsic bounds matching the image — the
   // DOM mirror reads this for hit-area sizing.
-  const leaf: SceneNode = node(field, { z: opts.z ?? 0 });
+  const leaf: SceneNode = setPart(node(field, { z: opts.z ?? 0 }), 'chrome');
   leaf.intrinsic = { x: 0, y: 0, w, h };
 
   return component(leaf, {

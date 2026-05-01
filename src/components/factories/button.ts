@@ -9,6 +9,7 @@
 
 import { node, rect, stack, text, type SceneNode } from 'screean';
 import { component } from '../component';
+import { setPart } from '../choreography/parts';
 import type {
   Component,
   Handler,
@@ -39,10 +40,10 @@ export const button = (opts: ButtonOpts): Component => {
   // Build the compositional subtree. stack() auto-centers children on their
   // mutual midpoint, so text lands dead-center on the chrome regardless of
   // text width.
-  const chrome = node(rect({ w: width, h: height, radius }), { z: 0 });
+  const chrome = setPart(node(rect({ w: width, h: height, radius }), { z: 0 }), 'chrome');
   const children: SceneNode[] = [chrome];
   if (opts.label !== '') {
-    const labelLeaf = node(text({ text: opts.label, font }), { z: 1 });
+    const labelLeaf = setPart(node(text({ text: opts.label, font }), { z: 1 }), 'label');
     children.push(labelLeaf);
   }
   const container = stack(children, { z: opts.z ?? 0 });

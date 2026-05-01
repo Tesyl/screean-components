@@ -117,13 +117,14 @@ describe('at()', () => {
 // Confirm EffectCtx shape compiles — purely a type-level test, but we
 // instantiate one to catch accidental drift.
 it('EffectCtx accepts the documented surface', () => {
-  const ctx = {
+  const ctx: EffectCtx = {
     particles: [],
     world: {} as EffectCtx['world'],
     scene: {} as EffectCtx['scene'],
     mirrorHost: {} as HTMLElement,
     t: 0,
     dt: 0,
-  } as EffectCtx;
+    state: {},
+  };
   expect(ctx.t).toBe(0);
 });

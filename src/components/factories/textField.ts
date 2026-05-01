@@ -16,6 +16,7 @@
 
 import { node, rect, stack, text, type SceneNode } from 'screean';
 import { component } from '../component';
+import { setPart } from '../choreography/parts';
 import type {
   Component,
   Handler,
@@ -38,12 +39,12 @@ export const textField = (opts: TextFieldOpts): Component => {
   const font = opts.font ?? '500 16px system-ui, -apple-system, sans-serif';
 
   // Chrome — rounded rect that gives the input its silhouette as particles.
-  const chrome = node(rect({ w: width, h: height, radius }), { z: 0 });
+  const chrome = setPart(node(rect({ w: width, h: height, radius }), { z: 0 }), 'chrome');
   const children: SceneNode[] = [chrome];
   // Particle text mirroring the typed value. Empty value → no text leaf
   // so the cloud reads as a quiet "input box" rather than a phantom prompt.
   if (opts.value !== '') {
-    const textLeaf = node(text({ text: opts.value, font }), { z: 1 });
+    const textLeaf = setPart(node(text({ text: opts.value, font }), { z: 1 }), 'content');
     children.push(textLeaf);
   }
   const container = stack(children, { z: opts.z ?? 0 });

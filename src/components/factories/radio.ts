@@ -10,6 +10,7 @@
 
 import { node, circleField, type SceneNode } from 'screean';
 import { component } from '../component';
+import { setPart } from '../choreography/parts';
 import type {
   Component,
   Handler,
@@ -38,10 +39,10 @@ export const radio = (opts: RadioOpts): Component => {
   const cy = h / 2;
   const dotR = opts.dotRadius ?? Math.max(2, r * 0.42);
 
-  const ring = node(circleField({ cx, cy, r }), { z: 0 });
+  const ring = setPart(node(circleField({ cx, cy, r }), { z: 0 }), 'ring');
   const children: SceneNode[] = [ring];
   if (opts.checked) {
-    const dot = node(circleField({ cx, cy, r: dotR }), { z: 1 });
+    const dot = setPart(node(circleField({ cx, cy, r: dotR }), { z: 1 }), 'dot');
     children.push(dot);
   }
 
