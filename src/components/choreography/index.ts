@@ -57,6 +57,10 @@ export { magnetize, type MagnetizeOpts, type MagnetizeTo } from './effects/magne
 export { vibrate, type VibrateOpts } from './effects/vibrate';
 export { shake, type ShakeOpts } from './effects/shake';
 export { shimmer, type ShimmerOpts } from './effects/shimmer';
+// Visual.
+export { pulse, type PulseOpts } from './effects/pulse';
+export { flash, type FlashOpts } from './effects/flash';
+export { fade, type FadeOpts } from './effects/fade';
 // World primitives.
 export { perlinGlitch, type PerlinGlitchOpts } from './effects/perlinGlitch';
 // Compound recipes (built on top of atoms via collapsePipelineToEffect).
