@@ -5,3 +5,14 @@ dist
 *.tsbuildinfo
 .vite
 coverage
+
+# tsc emits next to source by default; we only use tsc for type-checking
+# (vite handles real bundling). Block .js / .d.ts / .js.map artifacts in
+# source dirs so accidental tsc -b runs don't pollute the working tree.
+src/**/*.js
+src/**/*.d.ts
+src/**/*.js.map
+site/**/*.js
+site/**/*.d.ts
+site/**/*.js.map
+# Hand-written .js (e.g. vite config) lives at repo root and is unaffected.
