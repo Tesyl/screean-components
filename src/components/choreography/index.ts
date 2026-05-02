@@ -51,6 +51,12 @@ export { spread, type SpreadOpts } from './effects/spread';
 export { rotate, type RotateOpts, type RotateAround } from './effects/rotate';
 export { scale, type ScaleOpts, type ScaleAround } from './effects/scale';
 export { teleport, type TeleportOpts } from './effects/teleport';
+// Forces & textures (temporal velocity injection).
+export { gravity, type GravityOpts } from './effects/gravity';
+export { magnetize, type MagnetizeOpts, type MagnetizeTo } from './effects/magnetize';
+export { vibrate, type VibrateOpts } from './effects/vibrate';
+export { shake, type ShakeOpts } from './effects/shake';
+export { shimmer, type ShimmerOpts } from './effects/shimmer';
 // World primitives.
 export { perlinGlitch, type PerlinGlitchOpts } from './effects/perlinGlitch';
 // Compound recipes (built on top of atoms via collapsePipelineToEffect).
