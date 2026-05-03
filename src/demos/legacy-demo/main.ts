@@ -18,8 +18,9 @@ import {
 } from 'screean';
 import {
   button, createFocusTracker, createPointerTracker, findComponentAncestor,
-  label, popTo3D, routeKeyboardEvent,
+  label, routeKeyboardEvent,
   type Component,
+  createChoreoRunner, popTo3D, pipe, groupOfComponent,
 } from '../../components';
 
 // ------------------------------ Boot ---------------------------------------
@@ -141,13 +142,10 @@ const setShape = (kind: ShapeKind): void => {
 };
 
 // 2.5D pop: clicking a button sends its particles forward on z for ~350ms,
-// then springs them back. The engine's z-spring does the motion; we just
-// set tz here.
+// then springs them back. The engine's z-spring does the motion; popTo3D
+// just writes the tz target through the choreography runner.
 const popButton = (btn: Component): void => {
-  popTo3D({
-    scene: ui, subtree: btn, particles: world.particles,
-    tz: 6, holdMs: 350,
-  });
+  choreo.run(pipe(popTo3D({ tz: 6, holdMs: 350 })), groupOfComponent(btn));
 };
 
 // Note: button onClick uses the registry pattern so closures work even though
@@ -187,6 +185,16 @@ const ui = scene(
     content,
   ),
 );
+
+// Choreography runner — drives popTo3D pipelines per click. No mirror in
+// this demo; pass document.body as a placeholder host (popTo3D doesn't
+// touch it).
+const choreo = createChoreoRunner({
+  scene: ui,
+  world,
+  particles: world.particles,
+  mirrorHost: document.body,
+});
 
 // ------------------------------ Pointer + focus trackers ------------------
 const tracker = createPointerTracker(ui);
@@ -301,6 +309,7 @@ const loop = (now: number): void => {
   last = now;
   ui.tick(dt);
   world.tick(dt);
+  choreo.tick(now);
   renderer.draw(world.particles, W, H);
 };
 requestAnimationFrame(loop);

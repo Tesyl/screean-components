@@ -20,7 +20,8 @@ import {
   spring, TRANSPARENT, type Color, type SceneNode,
 } from 'screean';
 import {
-  button, createDissolve, createDomMirror, label, type Component,
+  button, createDomMirror, label, type Component,
+  createChoreoRunner, dissolve, groupOfComponent, pipe, setColor,
 } from '../../components';
 
 // ------------------------------ Boot ---------------------------------------
@@ -192,36 +193,35 @@ const mirror = createDomMirror({ scene: ui, host: mirrorHost });
 // Run the mirror once so divs exist before the first dissolve call.
 mirror.reconcile();
 
-// ------------------------------ Dissolve primitive -------------------------
-// Shared choreography primitive from screean-components. State machine is
-// burst → particles → returning (lerp home) → reforming (CSS fade mirror in).
-// Consumer (this demo) owns particle reveal/hide so color behavior stays
-// local. Tune via the opts below; same knob names as html-interop demo.
-const dissolve = createDissolve({
+// ------------------------------ Choreography runner ------------------------
+// Per-click pipeline: paint particles a fresh color → run dissolve → paint
+// transparent. The dissolve effect itself is a recipe (setMirrorOpacity,
+// kick, captureStarts, easeToTargets, pinToTargets, restore mirror).
+const choreo = createChoreoRunner({
   scene: ui,
+  world,
   particles: world.particles,
   mirrorHost,
-  onReveal: (indices) => {
-    for (const i of indices) {
-      const p = world.particles[i];
-      if (p) p.color = pickColor();
-    }
-  },
-  onHide: (indices) => {
-    for (const i of indices) {
-      const p = world.particles[i];
-      if (p) p.color = TRANSPARENT;
-    }
-  },
-  particlePhaseMs: 1200,
-  returnMs: 300,
-  fadeMs: 220,
-  returnEasing: easing.outCubic,
-  burstKick: 420,
-  burstSoftness: 0.12,
 });
 
-dissolveButton = (c: Component): void => dissolve.trigger(c);
+dissolveButton = (c: Component): void => {
+  choreo.run(
+    pipe(
+      setColor({ to: pickColor }),
+      dissolve({
+        particlePhaseMs: 1200,
+        returnMs: 300,
+        fadeMs: 220,
+        returnEasing: easing.outCubic,
+        burstKick: 420,
+        burstSoftness: 0.12,
+      }),
+      setColor({ to: TRANSPARENT }),
+    ),
+    groupOfComponent(c),
+    c,
+  );
+};
 
 // ------------------------------ A11y inspector HUD -------------------------
 const hudFocused = document.getElementById('hud-focused')!;
@@ -264,11 +264,9 @@ const loop = (now: number) => {
   last = now;
   world.tick(dt);
   ui.tick(dt);
-  // Advance any in-flight dissolves. This runs AFTER world.tick so the
-  // `returning` / `reforming` phases' direct position writes override the
-  // integrated physics for this frame. (Physics still computes — we just
-  // stomp the result for these specific particles.)
-  dissolve.tick(now);
+  // Advance any in-flight choreography. Runs AFTER world.tick so dissolve's
+  // returning/reforming phase position writes override integrated physics.
+  choreo.tick(now);
   mirror.reconcile();
   renderer.draw(world.particles, W, H);
 };

@@ -23,7 +23,8 @@ import {
   type Color, type SceneNode,
 } from 'screean';
 import {
-  button, createDomMirror, label, popTo3D, type Component,
+  button, createDomMirror, label, type Component,
+  createChoreoRunner, popTo3D, pipe, groupOfSubtree,
 } from '../../components';
 
 // ------------------------------ Boot ---------------------------------------
@@ -208,6 +209,12 @@ hideAll();
 
 // ------------------------------ DOM mirror ---------------------------------
 const mirror = createDomMirror({ scene: ui, host: mirrorHost });
+const choreo = createChoreoRunner({
+  scene: ui,
+  world,
+  particles: world.particles,
+  mirrorHost,
+});
 mirror.reconcile();
 
 // ------------------------------ HUD ----------------------------------------
@@ -333,13 +340,10 @@ const navigate = (to: Route, from?: Component): void => {
 
   // Pop forward on Z for the 3D feel. Auto-resets before RETURNING starts
   // so particles are back on the screen plane when the lerp takes over.
-  popTo3D({
-    scene: ui,
-    subtree: currentPage,
-    particles: world.particles,
-    tz: LIFT_TZ,
-    holdMs: LIFT_HOLD_MS,
-  });
+  choreo.run(
+    pipe(popTo3D({ tz: LIFT_TZ, holdMs: LIFT_HOLD_MS })),
+    groupOfSubtree(currentPage),
+  );
 
   // Fade old mirrors out (opacity only — no scale. Scaling would create
   // a mismatch between the particle silhouette and the shrinking/growing
@@ -465,6 +469,7 @@ const loop = (now: number): void => {
   last = now;
   world.tick(dt);
   ui.tick(dt);
+  choreo.tick(now);
   // Nav state machine — runs AFTER world.tick so its position writes
   // during RETURNING / REFORMING override the physics integration for
   // this frame.

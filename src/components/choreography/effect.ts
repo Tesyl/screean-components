@@ -10,12 +10,18 @@
 // or was cancelled mid-flight. Effects that hold transient world state
 // (setForceConstant, setTrail) MUST restore it in onEnd.
 
-import type { Particle, Scene, IWorld } from 'screean';
+import type { Particle, Scene, IWorld, World } from 'screean';
 import type { Component } from '../types';
+
+// Either backend works. The runner doesn't call any world method itself —
+// effects duck-type for the surface they need (e.g. perlinGlitch checks
+// for applyPerlinGlitch). This avoids forcing every demo to go through
+// createWorld() (which adds the `backend` field) just to use choreography.
+export type ChoreoWorld = IWorld | World;
 
 export type EffectCtx = {
   particles: Particle[];
-  world: IWorld;
+  world: ChoreoWorld;
   scene: Scene;
   // Optional: only present when the calling pipeline was triggered against a
   // component (i.e. via groupOfComponent or groupOfPart). Effects that need

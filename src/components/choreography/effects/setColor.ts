@@ -1,26 +1,32 @@
 // setColor — instant color write across the group. Pairs with dissolve in
-// the canonical "make particles visible / hide them again" pattern:
+// the canonical "make particles visible / hide them again" pattern.
 //
-//   pipe(
-//     setColor({ to: yellow }),
-//     dissolve({...}),
-//     setColor({ to: TRANSPARENT }),
-//   );
+//   setColor({ to: yellow })       // uniform
+//   setColor({ to: pickColor })    // per-particle (function called for each)
 
 import type { Color } from 'screean';
 import type { Effect } from '../effect';
 
 export type SetColorOpts = {
-  to: Color;
+  to: Color | (() => Color);
 };
 
 export const setColor = (opts: SetColorOpts): Effect => ({
   scope: 'particle',
   duration: 0,
   tick: (indices, ctx) => {
-    for (const i of indices) {
-      const p = ctx.particles[i];
-      if (p && p.life > 0) p.color = opts.to;
+    if (typeof opts.to === 'function') {
+      const fn = opts.to;
+      for (const i of indices) {
+        const p = ctx.particles[i];
+        if (p && p.life > 0) p.color = fn();
+      }
+    } else {
+      const c = opts.to;
+      for (const i of indices) {
+        const p = ctx.particles[i];
+        if (p && p.life > 0) p.color = c;
+      }
     }
   },
 });

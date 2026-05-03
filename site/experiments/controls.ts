@@ -31,13 +31,16 @@ import {
   button,
   card,
   checkbox,
-  createDissolve,
   createDomMirror,
   image,
   label,
   radio,
   textField,
   type ComponentEvent,
+  createChoreoRunner,
+  dissolve,
+  groupOfComponent,
+  pipe,
 } from '../../src/components';
 
 import { renderNav, renderFooter } from '../layout';
@@ -328,7 +331,7 @@ export const mount = (root: HTMLElement): (() => void) => {
             id: 'cb-agree',
             checked: state.agree,
             onChange: (e) => {
-              dissolve.trigger(e.component);
+              triggerDissolve(e.component);
               state.agree = !state.agree;
               rebuild();
             },
@@ -340,7 +343,7 @@ export const mount = (root: HTMLElement): (() => void) => {
             id: 'cb-news',
             checked: state.newsletter,
             onChange: (e) => {
-              dissolve.trigger(e.component);
+              triggerDissolve(e.component);
               state.newsletter = !state.newsletter;
               rebuild();
             },
@@ -357,7 +360,7 @@ export const mount = (root: HTMLElement): (() => void) => {
               id: `rd-${c}`,
               checked: state.color === c,
               onChange: (e) => {
-                dissolve.trigger(e.component);
+                triggerDissolve(e.component);
                 state.color = c;
                 rebuild();
               },
@@ -384,7 +387,7 @@ export const mount = (root: HTMLElement): (() => void) => {
           radius: 10,
           font: FONT_INPUT,
           onClick: (e) => {
-            dissolve.trigger(e.component);
+            triggerDissolve(e.component);
             state.submits += 1;
             rebuild();
           },
@@ -440,23 +443,32 @@ export const mount = (root: HTMLElement): (() => void) => {
   const mirror = createDomMirror({ scene: sceneObj, host: mirrorHost });
   mirror.reconcile();
 
-  const dissolve = createDissolve({
+  const choreo = createChoreoRunner({
     scene: sceneObj,
+    world: sg.world,
     particles: sg.world.particles,
     mirrorHost,
-    onReveal: (indices) => {
-      // Particles are already chartreuse and visible; nothing to do.
-      // (Other consumers might re-color here.)
-      void indices;
-    },
-    onHide: () => {
-      // After cycle: re-color any particles that drifted to TRANSPARENT.
-      colorAll();
-    },
-    particlePhaseMs: 1000,
-    returnMs: 480,
-    fadeMs: 240,
   });
+
+  const triggerDissolve = (c: Parameters<typeof groupOfComponent>[0]): void => {
+    choreo.run(
+      pipe(
+        // Particles are already chartreuse and visible at rest — no
+        // pre-paint stage needed. (Other consumers would setColor here.)
+        dissolve({ particlePhaseMs: 1000, returnMs: 480, fadeMs: 240 }),
+        // Post-cycle: re-color any particles that drifted to TRANSPARENT.
+        // This was onHide in the legacy API. Inline as a custom Effect
+        // since colorAll() is closure-bound to mutable palette state.
+        {
+          scope: 'particle' as const,
+          duration: 0,
+          tick: () => colorAll(),
+        },
+      ),
+      groupOfComponent(c),
+      c,
+    );
+  };
 
   // ─── Rebuild — replaces the column subtree, preserves scene root ────
   const rebuild = (): void => {
@@ -480,6 +492,7 @@ export const mount = (root: HTMLElement): (() => void) => {
     const dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
     sceneObj.tick(dt);
+    choreo.tick(now);
     mirror.reconcile();
   };
   raf = requestAnimationFrame(tick);
@@ -509,7 +522,7 @@ export const mount = (root: HTMLElement): (() => void) => {
   return () => {
     if (raf) cancelAnimationFrame(raf);
     fs.dispose();
-    dissolve.dispose();
+    choreo.dispose();
     mirror.dispose();
     sg.dispose();
     styleEl.remove();

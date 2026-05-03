@@ -7,8 +7,9 @@
 // Source layout (subdirs are organizational, not API):
 //   - types.ts + component.ts (root) — the core abstraction
 //   - factories/ — visible components (button, card, label, slider, toggle)
-//   - dom/ — DOM mirror + dom-flavored choreography (domMirror, dissolveAndReform, popTo3D)
-//   - routing/ — event + focus routing (pointerTracker, focusTracker, routePointerEvent, routeKeyboardEvent)
+//   - dom/ — DOM mirror
+//   - choreography/ — pipeline-based motion primitives + recipes
+//   - routing/ — event + focus routing
 //   - ui/ — React shadcn versions
 // External consumers should import via this barrel; the subdirs are private.
 
@@ -44,20 +45,17 @@ export { radio, type RadioOpts } from './factories/radio';
 export { image, type ImageOpts, type ImageSource } from './factories/image';
 export { textField, type TextFieldOpts } from './factories/textField';
 
-// ─── dom (mirror + dom-flavored choreography) ──────────────────────────────
+// ─── dom (mirror) ──────────────────────────────────────────────────────────
 export {
   createDomMirror,
   type DomMirror,
   type DomMirrorOpts,
 } from './dom/domMirror';
 
-export {
-  createDissolve,
-  type Dissolve,
-  type DissolveOpts,
-} from './dom/dissolveAndReform';
-
-export { popTo3D, type PopTo3DOpts, type PopTo3DHandle } from './dom/popTo3D';
+// ─── choreography ──────────────────────────────────────────────────────────
+// Re-export the full choreography surface from this barrel so consumers
+// don't need to reach into screean-components/choreography/ directly.
+export * from './choreography';
 
 // ─── routing (events + focus) ──────────────────────────────────────────────
 export {

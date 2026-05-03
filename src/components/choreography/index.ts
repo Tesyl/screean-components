@@ -12,12 +12,13 @@ export { setPart, getPart, findPart } from './parts';
 export type { Group, GroupCtx } from './group';
 export {
   groupOfComponent,
+  groupOfSubtree,
   groupOfPart,
   groupAll,
   groupWhere,
 } from './group';
 
-export type { Effect, EffectCtx, EffectScope } from './effect';
+export type { Effect, EffectCtx, EffectScope, ChoreoWorld } from './effect';
 export { makeInstantEffect } from './effect';
 
 export type { Pipeline, PipelineStage } from './pipeline';

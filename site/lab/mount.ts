@@ -28,12 +28,15 @@ import {
   type Easing,
 } from 'screean';
 import {
-  createDissolve,
   createDomMirror,
   type Component,
-  type Dissolve,
   type DomMirror,
   type ComponentEvent,
+  createChoreoRunner,
+  dissolve,
+  groupOfComponent,
+  pipe,
+  setColor,
 } from '../../src/components';
 // Default visual identity for component mirrors (paint layer — geometry
 // lives inline on the mirror element). Importing here gives every lab
@@ -149,12 +152,13 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
   });
 
   // Inline activation wrapper: each component's onClick / onChange also
-  // fires dissolve.trigger. The story's build() returns a component
-  // without any click handler; we install our wrapped one here, after
-  // the dissolve instance exists (via the closure access below).
+  // fires the dissolve pipeline against the clicked component.
   const activate = (e: ComponentEvent): void => {
-    // dissolve might be null briefly during recreate; guard.
-    if (dissolve) dissolve.trigger(e.component);
+    choreoRunner.run(
+      buildDissolvePipeline(),
+      groupOfComponent(e.component),
+      e.component,
+    );
   };
 
   // Track the most-recently-built component so the controls panel's
@@ -302,36 +306,32 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
   };
   hideAll();
 
-  // ─── DOM mirror + dissolve ────────────────────────────────────────────
+  // ─── DOM mirror + choreography runner ─────────────────────────────────
   const mirror: DomMirror = createDomMirror({ scene: sceneObj, host: mirrorHost });
   mirror.reconcile();
 
-  let dissolve: Dissolve = createDissolve({
+  const choreoRunner = createChoreoRunner({
     scene: sceneObj,
+    world: sg.world,
     particles: sg.world.particles,
     mirrorHost,
-    // Reveal: color the particles entering the visible phase from palette.
-    // Hide: snap them back to TRANSPARENT so steady state stays "invisible
-    // cloud + visible mirror chrome." Same shape as button-grid demo.
-    onReveal: (indices) => {
-      for (const i of indices) {
-        const p = sg.world.particles[i];
-        if (p) p.color = pickColor();
-      }
-    },
-    onHide: (indices) => {
-      for (const i of indices) {
-        const p = sg.world.particles[i];
-        if (p) p.color = TRANSPARENT;
-      }
-    },
-    particlePhaseMs: choreo.particlePhaseMs,
-    returnMs: choreo.returnMs,
-    fadeMs: choreo.fadeMs,
-    burstKick: choreo.burstKick,
-    burstSoftness: choreo.burstSoftness,
-    returnEasing: easingByName(choreo.returnEasing),
   });
+
+  // Build the dissolve pipeline using the CURRENT choreo state. Recomputed
+  // per trigger so setChoreo updates take effect without rebuilding the
+  // runner.
+  const buildDissolvePipeline = () => pipe(
+    setColor({ to: pickColor }),  // was onReveal
+    dissolve({
+      particlePhaseMs: choreo.particlePhaseMs,
+      returnMs: choreo.returnMs,
+      fadeMs: choreo.fadeMs,
+      burstKick: choreo.burstKick,
+      burstSoftness: choreo.burstSoftness,
+      returnEasing: easingByName(choreo.returnEasing),
+    }),
+    setColor({ to: TRANSPARENT }),  // was onHide
+  );
 
   // ─── Rebuild — swap camera children, re-tick, re-center, re-bind ─────
   const rebuild = (): void => {
@@ -348,11 +348,10 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
     mirror.reconcile();
   };
 
-  // ─── Per-frame: scene tick + dissolve tick + mirror reconcile ────────
-  // dissolve.tick advances the state machine (particles → returning →
-  // reforming → end). Without this call, dissolve.trigger sets opacity
-  // to 0 and the cycle never finishes — mirror stays invisible until a
-  // rebuild forces a reconcile. Consumers MUST wire tick into their rAF.
+  // ─── Per-frame: scene tick + choreo tick + mirror reconcile ─────────
+  // choreoRunner.tick advances every live pipeline. Without this call,
+  // a triggered dissolve sets opacity 0 and the cycle never finishes —
+  // mirror stays invisible until rebuild. Consumers MUST wire it.
   let raf = 0;
   let lastT = performance.now();
   const tick = (now: number): void => {
@@ -360,7 +359,7 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
     const dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
     sceneObj.tick(dt);
-    dissolve.tick(now);
+    choreoRunner.tick(now);
     mirror.reconcile();
   };
   raf = requestAnimationFrame(tick);
@@ -419,33 +418,16 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
     },
     setChoreo: (next) => {
       choreo = { ...choreo, ...next };
-      dissolve.dispose();
-      dissolve = createDissolve({
-        scene: sceneObj,
-        particles: sg.world.particles,
-        mirrorHost,
-        onReveal: (indices) => {
-          for (const i of indices) {
-            const p = sg.world.particles[i];
-            if (p) p.color = pickColor();
-          }
-        },
-        onHide: (indices) => {
-          for (const i of indices) {
-            const p = sg.world.particles[i];
-            if (p) p.color = TRANSPARENT;
-          }
-        },
-        particlePhaseMs: choreo.particlePhaseMs,
-        returnMs: choreo.returnMs,
-        fadeMs: choreo.fadeMs,
-        burstKick: choreo.burstKick,
-        burstSoftness: choreo.burstSoftness,
-        returnEasing: easingByName(choreo.returnEasing),
-      });
+      // No rebuild needed — buildDissolvePipeline() reads current state
+      // each time triggerDissolve fires.
     },
     triggerDissolve: () => {
-      if (currentComponent) dissolve.trigger(currentComponent);
+      if (!currentComponent) return;
+      choreoRunner.run(
+        buildDissolvePipeline(),
+        groupOfComponent(currentComponent),
+        currentComponent,
+      );
     },
     setKickMode: (on) => { kickMode = on; },
     getProps: () => ({ ...props }),
@@ -454,7 +436,7 @@ export const mountLabStory = (opts: LabMountOpts): LabHandle => {
       if (resizeRaf) cancelAnimationFrame(resizeRaf);
       ro.disconnect();
       canvas.removeEventListener('click', onCanvasClick);
-      dissolve.dispose();
+      choreoRunner.dispose();
       mirror.dispose();
       sg.dispose();
     },

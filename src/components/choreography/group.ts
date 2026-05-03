@@ -14,7 +14,7 @@
 // this is documented and accepted for v1. Per-tick re-resolution is an
 // additive opt later.
 
-import type { Particle, Scene } from 'screean';
+import type { Particle, Scene, SceneNode } from 'screean';
 import type { Component } from '../types';
 import { findPart } from './parts';
 
@@ -28,6 +28,15 @@ export type Group = {
   // Optional human-readable label for debugging / lab UI ("button.chrome").
   label?: string;
 };
+
+// Every particle bound to a SceneNode's subtree. Component is a SceneNode,
+// so this also handles components — `groupOfComponent` is the typed shortcut.
+// Useful for callers that have a non-component SceneNode (e.g. routing's
+// "current page" node).
+export const groupOfSubtree = (node: SceneNode): Group => ({
+  resolve: (ctx) => ctx.scene.indicesForSubtree(node),
+  label: 'subtree',
+});
 
 // Every particle bound to the component's subtree. Resolution delegates to
 // the engine's existing per-leaf index cache (populated by scene.bindAll),

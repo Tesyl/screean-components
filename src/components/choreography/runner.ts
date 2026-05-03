@@ -8,9 +8,9 @@
 // advances all live handles and prunes done ones. dispose() cancels every
 // live handle (running their onEnds) and clears the trigger registry.
 
-import type { Particle, Scene, IWorld } from 'screean';
+import type { Particle, Scene } from 'screean';
 import type { Component } from '../types';
-import type { Effect, EffectCtx } from './effect';
+import type { ChoreoWorld, Effect, EffectCtx } from './effect';
 import type { Group, GroupCtx } from './group';
 import type { Pipeline } from './pipeline';
 
@@ -56,7 +56,7 @@ export type ChoreoRunner = {
 
 export type ChoreoRunnerDeps = {
   scene: Scene;
-  world: IWorld;
+  world: ChoreoWorld;
   particles: Particle[];
   mirrorHost: HTMLElement;
 };
