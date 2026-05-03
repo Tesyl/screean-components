@@ -4,7 +4,7 @@
 
 import type { Color, Easing } from 'screean';
 import { easing as curves } from 'screean';
-import type { Effect } from '../effect';
+import { defineEffect, type Effect, type EffectState } from '../effect';
 import { lerpColor } from './_color';
 
 export type PulseOpts = {
@@ -13,18 +13,20 @@ export type PulseOpts = {
   easing?: Easing;
 };
 
-type State = {
-  originals: Uint32Array;
+// Typed state. Authoring through defineEffect<PulseState> means ctx.state
+// inside tick/onEnd is checked: ctx.state.__pulse autocompletes; reading
+// ctx.state.startsX (a different effect's key) is a type error.
+type PulseState = EffectState & {
+  __pulse?: { originals: Uint32Array };
 };
 
 export const pulse = (opts: PulseOpts): Effect => {
   const ease = opts.easing ?? curves.outCubic;
-  return {
+  return defineEffect<PulseState>({
     scope: 'particle',
     duration: opts.duration,
     tick: (indices, ctx) => {
-      const stateMap = ctx.state as Record<string, State>;
-      let state = stateMap.__pulse;
+      let state = ctx.state.__pulse;
       if (!state) {
         const originals = new Uint32Array(indices.length);
         for (let k = 0; k < indices.length; k++) {
@@ -33,7 +35,7 @@ export const pulse = (opts: PulseOpts): Effect => {
           originals[k] = p.color as unknown as number;
         }
         state = { originals };
-        stateMap.__pulse = state;
+        ctx.state.__pulse = state;
       }
 
       // 2-phase shape: 0..0.5 → forward, 0.5..1 → reverse. Halve the easing
@@ -50,7 +52,7 @@ export const pulse = (opts: PulseOpts): Effect => {
       }
     },
     onEnd: (indices, ctx) => {
-      const state = (ctx.state as Record<string, State>).__pulse;
+      const state = ctx.state.__pulse;
       if (!state) return;
       for (let i = 0; i < indices.length; i++) {
         const p = ctx.particles[indices[i]];
@@ -58,5 +60,5 @@ export const pulse = (opts: PulseOpts): Effect => {
         p.color = state.originals[i] as unknown as Color;
       }
     },
-  };
+  });
 };

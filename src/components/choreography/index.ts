@@ -18,8 +18,15 @@ export {
   groupWhere,
 } from './group';
 
-export type { Effect, EffectCtx, EffectScope, ChoreoWorld } from './effect';
-export { makeInstantEffect } from './effect';
+export type {
+  Effect,
+  EffectCtx,
+  EffectScope,
+  EffectState,
+  EffectImpl,
+  ChoreoWorld,
+} from './effect';
+export { defineEffect, makeInstantEffect } from './effect';
 
 export type { Pipeline, PipelineStage } from './pipeline';
 export { pipe, at } from './pipeline';

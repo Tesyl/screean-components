@@ -10,7 +10,7 @@
 // window, particles pull toward the original position. Document — moving
 // targets create feedback loops at this scale.
 
-import type { Effect } from '../effect';
+import { defineEffect, type Effect, type EffectState } from '../effect';
 import { centroidOf } from './_geom';
 import { findPart } from '../parts';
 import type { Component } from '../../types';
@@ -26,10 +26,8 @@ export type MagnetizeOpts = {
   duration: number;
 };
 
-type State = {
-  destX: number;
-  destY: number;
-  initialized: boolean;
+type MagnetizeState = EffectState & {
+  __magnetize?: { destX: number; destY: number };
 };
 
 const resolveTarget = (
@@ -47,32 +45,32 @@ const resolveTarget = (
   return to;
 };
 
-export const magnetize = (opts: MagnetizeOpts): Effect => ({
-  scope: 'spatial',
-  duration: opts.duration,
-  tick: (indices, ctx) => {
-    const stateMap = ctx.state as Record<string, State>;
-    let state = stateMap.__magnetize;
-    if (!state) {
-      const dest = resolveTarget(opts.to, indices, ctx);
-      state = { destX: dest.x, destY: dest.y, initialized: true };
-      stateMap.__magnetize = state;
-    }
+export const magnetize = (opts: MagnetizeOpts): Effect =>
+  defineEffect<MagnetizeState>({
+    scope: 'spatial',
+    duration: opts.duration,
+    tick: (indices, ctx) => {
+      let state = ctx.state.__magnetize;
+      if (!state) {
+        const dest = resolveTarget(opts.to, indices, ctx);
+        state = { destX: dest.x, destY: dest.y };
+        ctx.state.__magnetize = state;
+      }
 
-    const dtSec = ctx.dt / 1000;
-    if (dtSec === 0) return;
-    const strengthDt = opts.strength * dtSec;
-    for (const i of indices) {
-      const p = ctx.particles[i];
-      if (!p || p.life <= 0) continue;
-      const dx = state.destX - p.x;
-      const dy = state.destY - p.y;
-      const distSq = dx * dx + dy * dy;
-      if (distSq < 1e-6) continue;
-      // Inverse-square; cap at distSq=1 to avoid singularity near target.
-      const denom = distSq < 1 ? 1 : distSq;
-      p.vx += (dx / denom) * strengthDt;
-      p.vy += (dy / denom) * strengthDt;
-    }
-  },
-});
+      const dtSec = ctx.dt / 1000;
+      if (dtSec === 0) return;
+      const strengthDt = opts.strength * dtSec;
+      for (const i of indices) {
+        const p = ctx.particles[i];
+        if (!p || p.life <= 0) continue;
+        const dx = state.destX - p.x;
+        const dy = state.destY - p.y;
+        const distSq = dx * dx + dy * dy;
+        if (distSq < 1e-6) continue;
+        // Inverse-square; cap at distSq=1 to avoid singularity near target.
+        const denom = distSq < 1 ? 1 : distSq;
+        p.vx += (dx / denom) * strengthDt;
+        p.vy += (dy / denom) * strengthDt;
+      }
+    },
+  });

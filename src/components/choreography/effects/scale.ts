@@ -5,7 +5,7 @@
 // factor relative to the pivot.
 
 import { easing as curves, type Easing } from 'screean';
-import type { Effect } from '../effect';
+import { defineEffect, type Effect, type EffectState } from '../effect';
 import { centroidOf } from './_geom';
 
 export type ScaleAround = { x: number; y: number } | 'centroid';
@@ -17,22 +17,23 @@ export type ScaleOpts = {
   easing?: Easing;
 };
 
-type State = {
-  pivotX: number;
-  pivotY: number;
-  offX: Float32Array;
-  offY: Float32Array;
+type ScaleState = EffectState & {
+  __scale?: {
+    pivotX: number;
+    pivotY: number;
+    offX: Float32Array;
+    offY: Float32Array;
+  };
 };
 
 export const scale = (opts: ScaleOpts): Effect => {
   const ease = opts.easing ?? curves.outCubic;
   const around: ScaleAround = opts.around ?? 'centroid';
-  return {
+  return defineEffect<ScaleState>({
     scope: 'spatial',
     duration: opts.duration,
     tick: (indices, ctx) => {
-      const stateMap = ctx.state as Record<string, State>;
-      let state = stateMap.__scale;
+      let state = ctx.state.__scale;
       if (!state) {
         const pivot =
           around === 'centroid'
@@ -47,7 +48,7 @@ export const scale = (opts: ScaleOpts): Effect => {
           offY[k] = p.y - pivot.y;
         }
         state = { pivotX: pivot.x, pivotY: pivot.y, offX, offY };
-        stateMap.__scale = state;
+        ctx.state.__scale = state;
       }
 
       const lerp = ctx.t / opts.duration;
@@ -62,5 +63,5 @@ export const scale = (opts: ScaleOpts): Effect => {
         p.vy = 0;
       }
     },
-  };
+  });
 };

@@ -19,7 +19,12 @@ import type { Component } from '../types';
 // createWorld() (which adds the `backend` field) just to use choreography.
 export type ChoreoWorld = IWorld | World;
 
-export type EffectCtx = {
+// Default state shape. Effects with private state declare a richer type via
+// defineEffect<S>; the runner stores everything as Record<string, unknown>
+// at runtime so heterogeneous pipelines compose freely.
+export type EffectState = Record<string, unknown>;
+
+export type EffectCtx<S extends EffectState = EffectState> = {
   particles: Particle[];
   world: ChoreoWorld;
   scene: Scene;
@@ -37,11 +42,10 @@ export type EffectCtx = {
   t: number;
   // Milliseconds since the previous frame for this stage.
   dt: number;
-  // Per-stage, per-handle scratch space. The runner allocates a fresh empty
-  // object per stage on first tick; effects mutate it across ticks. Two
-  // concurrent handles for the same pipeline get independent state objects,
-  // so cycle data (captured starts, mirror divs) doesn't leak between runs.
-  state: Record<string, unknown>;
+  // Per-handle scratch space (shared across stages of one pipeline run).
+  // Default type is the loose Record<string, unknown>; effects authored via
+  // defineEffect<S> see this typed as S inside their tick body.
+  state: S;
 };
 
 // What an effect touches. Runtime metadata only — pipelines stay polymorphic
@@ -63,6 +67,31 @@ export type Effect = {
   onEnd?: (indices: readonly number[], ctx: EffectCtx) => void;
   duration: number;
 };
+
+// Typed implementation shape — what defineEffect<S> accepts. The widening
+// to non-generic Effect happens inside defineEffect so heterogeneous
+// pipelines don't need variance gymnastics.
+export type EffectImpl<S extends EffectState> = {
+  scope: EffectScope;
+  duration: number;
+  tick: (indices: readonly number[], ctx: EffectCtx<S>) => void;
+  onEnd?: (indices: readonly number[], ctx: EffectCtx<S>) => void;
+};
+
+// defineEffect<S>(impl) — type-safe authoring of an effect with private
+// state shape S. Inside `tick` and `onEnd`, ctx.state is typed as S; outside,
+// the returned Effect is the loose runtime type so pipelines compose freely.
+//
+// Usage:
+//   type DissolveState = { startsX: Float32Array | null; ... };
+//   export const dissolve = (opts) => defineEffect<DissolveState>({
+//     scope: 'particle',
+//     duration: ...,
+//     tick: (indices, ctx) => { if (!ctx.state.startsX) {...} },
+//   });
+export const defineEffect = <S extends EffectState>(
+  impl: EffectImpl<S>,
+): Effect => impl as unknown as Effect;
 
 // Tiny helper for consumers building one-off instant effects inline.
 // Returns a fresh Effect; pure factory. Defaults to particle scope; pass an

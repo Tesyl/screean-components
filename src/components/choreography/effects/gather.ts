@@ -8,7 +8,7 @@
 // loop that looks weird.
 
 import { easing as curves, type Easing } from 'screean';
-import type { Effect } from '../effect';
+import { defineEffect, type Effect, type EffectState } from '../effect';
 import { centroidOf } from './_geom';
 
 export type GatherTo = { x: number; y: number } | 'centroid';
@@ -19,22 +19,22 @@ export type GatherOpts = {
   easing?: Easing;
 };
 
-type State = {
-  startsX: Float32Array;
-  startsY: Float32Array;
-  destX: number;
-  destY: number;
-  initialized: boolean;
+type GatherState = EffectState & {
+  __gather?: {
+    startsX: Float32Array;
+    startsY: Float32Array;
+    destX: number;
+    destY: number;
+  };
 };
 
 export const gather = (opts: GatherOpts): Effect => {
   const ease = opts.easing ?? curves.outCubic;
-  return {
+  return defineEffect<GatherState>({
     scope: 'spatial',
     duration: opts.duration,
     tick: (indices, ctx) => {
-      const stateMap = ctx.state as Record<string, State>;
-      let state = stateMap.__gather;
+      let state = ctx.state.__gather;
       if (!state) {
         const startsX = new Float32Array(indices.length);
         const startsY = new Float32Array(indices.length);
@@ -53,9 +53,8 @@ export const gather = (opts: GatherOpts): Effect => {
           startsY,
           destX: dest.x,
           destY: dest.y,
-          initialized: true,
         };
-        stateMap.__gather = state;
+        ctx.state.__gather = state;
       }
 
       const lerp = ctx.t / opts.duration;
@@ -69,5 +68,5 @@ export const gather = (opts: GatherOpts): Effect => {
         p.vy = 0;
       }
     },
-  };
+  });
 };

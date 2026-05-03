@@ -6,7 +6,7 @@
 
 import type { Color, Easing } from 'screean';
 import { easing as curves, unpackA } from 'screean';
-import type { Effect } from '../effect';
+import { defineEffect, type Effect, type EffectState } from '../effect';
 import { setAlpha } from './_color';
 
 export type FadeOpts = {
@@ -18,19 +18,17 @@ export type FadeOpts = {
   easing?: Easing;
 };
 
-type State = {
-  starts: Uint8Array;
-  originals: Uint32Array;
+type FadeState = EffectState & {
+  __fade?: { starts: Uint8Array; originals: Uint32Array };
 };
 
 export const fade = (opts: FadeOpts): Effect => {
   const ease = opts.easing ?? curves.outCubic;
-  return {
+  return defineEffect<FadeState>({
     scope: 'particle',
     duration: opts.duration,
     tick: (indices, ctx) => {
-      const stateMap = ctx.state as Record<string, State>;
-      let state = stateMap.__fade;
+      let state = ctx.state.__fade;
       if (!state) {
         const starts = new Uint8Array(indices.length);
         const originals = new Uint32Array(indices.length);
@@ -41,7 +39,7 @@ export const fade = (opts: FadeOpts): Effect => {
           starts[k] = opts.from !== undefined ? opts.from : unpackA(p.color);
         }
         state = { starts, originals };
-        stateMap.__fade = state;
+        ctx.state.__fade = state;
       }
       const lerp = ctx.t / opts.duration;
       const k = ease(lerp >= 1 ? 1 : lerp);
@@ -52,5 +50,5 @@ export const fade = (opts: FadeOpts): Effect => {
         p.color = setAlpha(state.originals[i] as unknown as Color, a);
       }
     },
-  };
+  });
 };

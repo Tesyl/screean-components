@@ -4,7 +4,7 @@
 // startPos + direction * distance.
 
 import { easing as curves, type Easing } from 'screean';
-import type { Effect } from '../effect';
+import { defineEffect, type Effect, type EffectState } from '../effect';
 import { centroidOf } from './_geom';
 
 export type SpreadOpts = {
@@ -13,21 +13,22 @@ export type SpreadOpts = {
   easing?: Easing;
 };
 
-type State = {
-  startsX: Float32Array;
-  startsY: Float32Array;
-  dx: Float32Array;
-  dy: Float32Array;
+type SpreadState = EffectState & {
+  __spread?: {
+    startsX: Float32Array;
+    startsY: Float32Array;
+    dx: Float32Array;
+    dy: Float32Array;
+  };
 };
 
 export const spread = (opts: SpreadOpts): Effect => {
   const ease = opts.easing ?? curves.outCubic;
-  return {
+  return defineEffect<SpreadState>({
     scope: 'spatial',
     duration: opts.duration,
     tick: (indices, ctx) => {
-      const stateMap = ctx.state as Record<string, State>;
-      let state = stateMap.__spread;
+      let state = ctx.state.__spread;
       if (!state) {
         const startsX = new Float32Array(indices.length);
         const startsY = new Float32Array(indices.length);
@@ -56,7 +57,7 @@ export const spread = (opts: SpreadOpts): Effect => {
           dy[k] = vecY;
         }
         state = { startsX, startsY, dx, dy };
-        stateMap.__spread = state;
+        ctx.state.__spread = state;
       }
 
       const lerp = ctx.t / opts.duration;
@@ -71,5 +72,5 @@ export const spread = (opts: SpreadOpts): Effect => {
         p.vy = 0;
       }
     },
-  };
+  });
 };

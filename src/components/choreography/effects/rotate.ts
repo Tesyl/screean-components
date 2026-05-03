@@ -4,7 +4,7 @@
 // the captured offset.
 
 import { easing as curves, type Easing } from 'screean';
-import type { Effect } from '../effect';
+import { defineEffect, type Effect, type EffectState } from '../effect';
 import { centroidOf } from './_geom';
 
 export type RotateAround = { x: number; y: number } | 'centroid';
@@ -16,23 +16,23 @@ export type RotateOpts = {
   easing?: Easing;
 };
 
-type State = {
-  pivotX: number;
-  pivotY: number;
-  // Per-particle offset from pivot, captured at first tick. (x, y) form.
-  offX: Float32Array;
-  offY: Float32Array;
+type RotateState = EffectState & {
+  __rotate?: {
+    pivotX: number;
+    pivotY: number;
+    offX: Float32Array;
+    offY: Float32Array;
+  };
 };
 
 export const rotate = (opts: RotateOpts): Effect => {
   const ease = opts.easing ?? curves.outCubic;
   const around: RotateAround = opts.around ?? 'centroid';
-  return {
+  return defineEffect<RotateState>({
     scope: 'spatial',
     duration: opts.duration,
     tick: (indices, ctx) => {
-      const stateMap = ctx.state as Record<string, State>;
-      let state = stateMap.__rotate;
+      let state = ctx.state.__rotate;
       if (!state) {
         const pivot =
           around === 'centroid'
@@ -47,7 +47,7 @@ export const rotate = (opts: RotateOpts): Effect => {
           offY[k] = p.y - pivot.y;
         }
         state = { pivotX: pivot.x, pivotY: pivot.y, offX, offY };
-        stateMap.__rotate = state;
+        ctx.state.__rotate = state;
       }
 
       const lerp = ctx.t / opts.duration;
@@ -66,5 +66,5 @@ export const rotate = (opts: RotateOpts): Effect => {
         p.vy = 0;
       }
     },
-  };
+  });
 };

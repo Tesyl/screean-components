@@ -20,7 +20,10 @@
 import type { Effect, EffectCtx, EffectScope } from '../effect';
 import type { Pipeline } from '../pipeline';
 
-const RECIPE_RUNTIMES_KEY = '__recipeRuntimes';
+// Unique-per-recipe key — prevents nested recipes from clobbering each
+// other's stage-runtime tracking. Module-local counter; deterministic across
+// a single process run.
+let _recipeSeq = 0;
 
 type StageRuntime = {
   started: boolean;
@@ -30,12 +33,13 @@ type StageRuntime = {
 const getOrCreateRuntimes = (
   ctx: EffectCtx,
   pipeline: Pipeline,
+  key: string,
 ): StageRuntime[] => {
   const stateMap = ctx.state as Record<string, unknown>;
-  let rts = stateMap[RECIPE_RUNTIMES_KEY] as StageRuntime[] | undefined;
+  let rts = stateMap[key] as StageRuntime[] | undefined;
   if (!rts) {
     rts = pipeline.stages.map(() => ({ started: false, ended: false }));
-    stateMap[RECIPE_RUNTIMES_KEY] = rts;
+    stateMap[key] = rts;
   }
   return rts;
 };
@@ -50,11 +54,15 @@ const innerCtx = (outer: EffectCtx, stageT: number): EffectCtx => ({
 export const collapsePipelineToEffect = (
   pipeline: Pipeline,
   scope: EffectScope = 'particle',
-): Effect => ({
+): Effect => {
+  // One key per recipe instance — nested recipes (recipe inside recipe) get
+  // distinct slots so their runtime tracking doesn't collide.
+  const runtimesKey = `__recipeRuntimes_${_recipeSeq++}`;
+  return {
   scope,
   duration: pipeline.duration,
   tick: (indices, ctx) => {
-    const runtimes = getOrCreateRuntimes(ctx, pipeline);
+    const runtimes = getOrCreateRuntimes(ctx, pipeline, runtimesKey);
     for (let i = 0; i < pipeline.stages.length; i++) {
       const stage = pipeline.stages[i];
       const rt = runtimes[i];
@@ -90,13 +98,13 @@ export const collapsePipelineToEffect = (
     // before the cleanup-tail of a recipe is reached. Without this, e.g.
     // popTo3D cancelled mid-hold leaves tz at the active value instead of
     // restoring it.
-    let runtimes = (ctx.state as Record<string, unknown>)[RECIPE_RUNTIMES_KEY] as
+    let runtimes = (ctx.state as Record<string, unknown>)[runtimesKey] as
       | StageRuntime[]
       | undefined;
     if (!runtimes) {
       // Cancel fired before any tick — synthesize empty runtimes.
       runtimes = pipeline.stages.map(() => ({ started: false, ended: false }));
-      (ctx.state as Record<string, unknown>)[RECIPE_RUNTIMES_KEY] = runtimes;
+      (ctx.state as Record<string, unknown>)[runtimesKey] = runtimes;
     }
     for (let i = 0; i < pipeline.stages.length; i++) {
       const stage = pipeline.stages[i];
@@ -109,4 +117,5 @@ export const collapsePipelineToEffect = (
       if (stage.effect.onEnd) stage.effect.onEnd(indices, inner);
     }
   },
-});
+  };
+};

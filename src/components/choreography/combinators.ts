@@ -8,7 +8,7 @@
 //   when(predicate, effect)      — guard at start
 //   stretch(factor, effect)      — scale the effect's duration
 
-import type { Effect } from './effect';
+import { defineEffect, type Effect, type EffectState } from './effect';
 import type { Pipeline } from './pipeline';
 import { pipe, at } from './pipeline';
 import { groupOfPart } from './group';
@@ -109,30 +109,41 @@ const loopGapEffect = (ms: number): Effect => ({
 // when — guard. Predicate is evaluated ONCE at t=0; effect runs only if
 // predicate returned true. Otherwise no-op for effect.duration ms.
 //
+// Each when() call gets a unique state key so two when-wrapped effects in
+// the same pipeline don't clobber each other.
+//
 // State changes mid-effect don't cancel — same one-shot semantics as
 // onEvent. For "watch this state and react," use onState at the trigger
 // level.
+let _whenSeq = 0;
+
 export const when = (
   predicate: (ctx: Parameters<Effect['tick']>[1]) => boolean,
   effect: Effect,
-): Effect => ({
-  scope: effect.scope,
-  duration: effect.duration,
-  tick: (indices, ctx) => {
-    const stateMap = ctx.state as { __whenChecked?: boolean; __whenAllow?: boolean };
-    if (!stateMap.__whenChecked) {
-      stateMap.__whenChecked = true;
-      stateMap.__whenAllow = predicate(ctx);
-    }
-    if (stateMap.__whenAllow) effect.tick(indices, ctx);
-  },
-  onEnd: effect.onEnd
-    ? (indices, ctx) => {
-        const stateMap = ctx.state as { __whenAllow?: boolean };
-        if (stateMap.__whenAllow) effect.onEnd!(indices, ctx);
+): Effect => {
+  const key = `__when_${_whenSeq++}` as const;
+  type WhenState = EffectState & {
+    [k: string]: { checked: boolean; allow: boolean } | unknown;
+  };
+  return defineEffect<WhenState>({
+    scope: effect.scope,
+    duration: effect.duration,
+    tick: (indices, ctx) => {
+      let slot = ctx.state[key] as { checked: boolean; allow: boolean } | undefined;
+      if (!slot || !slot.checked) {
+        slot = { checked: true, allow: predicate(ctx) };
+        ctx.state[key] = slot;
       }
-    : undefined,
-});
+      if (slot.allow) effect.tick(indices, ctx);
+    },
+    onEnd: effect.onEnd
+      ? (indices, ctx) => {
+          const slot = ctx.state[key] as { allow: boolean } | undefined;
+          if (slot?.allow) effect.onEnd!(indices, ctx);
+        }
+      : undefined,
+  });
+};
 
 // stretch — scale the wrapped effect's duration by `factor`. Same start
 // time, scaled end. The inner effect's tick still sees its full
