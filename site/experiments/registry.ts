@@ -72,6 +72,13 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     topics: ['createWorld', 'createRendererAsync', 'WebGPU', 'WorldGPU', 'auto-fallback'],
     load: () => import('./gpuEngine'),
   },
+  {
+    name: 'six-showcase',
+    title: 'six-showcase — fullscreen the6ixCollective demo',
+    blurb: "Fullscreen presentation of the engine. Cycles between the 6ix logo, a sphere, and the the6ixCollective text — logo + sphere share a 2-axis rotation matrix, text faces the camera. Per-transition spring/drag presets vary the arrival feel; text mode flickers between fonts before settling. Every 10s a multi-band Perlin glitch burst kicks the field. Click to scatter. Esc to exit.",
+    topics: ['fullscreen', 'WebGPU', 'WorldGPU', 'applyPerlinGlitch', 'cloud cycle'],
+    load: () => import('./sixShowcase'),
+  },
 ];
 
 export const findExperiment = (name: string): Experiment | undefined =>
