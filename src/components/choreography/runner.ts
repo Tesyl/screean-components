@@ -165,16 +165,25 @@ const buildHandle = (
   const cancel = (): void => {
     if (cancelled) return;
     cancelled = true;
+    // Fast-forward to end state (matches collapsePipelineToEffect's cancel
+    // semantics). Every stage that hasn't ended runs its tick at final t,
+    // then onEnd. This includes stages that never started — important so
+    // cleanup-tail effects (setTz(0), setMirrorOpacity(1), animate target)
+    // actually fire on cancel even if they hadn't been reached.
+    //
+    // Integrating effects (gravity, magnetize, vibrate, shimmer) write
+    // velocity per tick scaled by ctx.dt — fast-forwarding to t=duration
+    // with dt=0 on the final tick adds no extra integration. The only
+    // effects sensitive to "what t was at cancel" are easing-based ones
+    // (animate, easeToTargets), and they correctly land at their target
+    // value when ticked at t=duration.
     for (const r of runtimes) {
-      if (r.started && !r.ended) {
-        r.ended = true;
-        if (r.effect.onEnd) {
-          // Use a synthetic ctx — at-cancellation t is wherever the stage was
-          // last ticked; dt is 0 because no frame elapsed since last advance.
-          const ctx = buildCtx(0, 0, handleState);
-          r.effect.onEnd(r.indices, ctx);
-        }
-      }
+      if (r.ended) continue;
+      const finalT = r.effect.duration;
+      const ctx = buildCtx(finalT, 0, handleState);
+      r.effect.tick(r.indices, ctx);
+      r.ended = true;
+      if (r.effect.onEnd) r.effect.onEnd(r.indices, ctx);
     }
   };
 
