@@ -33,6 +33,7 @@ import { groupOfComponent } from '../../src/components/choreography/group';
 import { pipe } from '../../src/components/choreography/pipeline';
 import { popTo3D } from '../../src/components/choreography/effects/popTo3D';
 import { visual } from '../../src/components/choreography/effects/visual';
+import { wait } from '../../src/components/choreography/effects/wait';
 
 const W = 480;
 const H = 320;
@@ -83,7 +84,11 @@ const buildSide = (
   const renderer = new Canvas2DRenderer({
     canvas,
     particleSize: 2.6,
-    trailAlpha: 0.22,
+    // Heavier trail-alpha (0.55) so faded particles aren't masked by the
+    // previous frame's still-bright pixels. Without this, a fade-to-zero
+    // alpha effect can be invisible because the trail keeps painting over
+    // the dimmed particles. 0.55 = trails clear quickly, fade reads true.
+    trailAlpha: 0.55,
     portalMode: false,
   });
 
@@ -99,12 +104,27 @@ const buildSide = (
   // physical distinction reads as clearly as possible: the click invokes
   // exactly one effect, no wrapping.
   const fireEffect = (): void => {
-    // Physical uses NEGATIVE tz so the chrome recedes (away from camera)
-    // — direct mirror of the visual fallAway's intent. Positive tz would
-    // pop forward, which is a different gesture (lift/pop, not fall).
+    // Both sides do "fall, hold, return" so each click shows the full
+    // transition cycle and lands back at the bound state — re-clickable
+    // for direct comparison.
+    //
+    // Physical uses negative tz (recede) so the gesture mirrors visual's
+    // intent. The popTo3D recipe IS already a setTz(tz) → wait → setTz(0)
+    // sequence — auto-returns.
+    //
+    // Visual is fallAway → wait → riseUp explicitly composed here. fallAway
+    // alone would be a one-way dismissal; for the demo we want to feel the
+    // full cycle.
     const effect = side === 'physical'
-      ? pipe(popTo3D({ tz: -8, holdMs: 600 }))
-      : pipe(visual.fallAway({ duration: 700, scaleTo: 0.55, alphaTo: 0 }));
+      ? pipe(popTo3D({ tz: -8, holdMs: 380 }))
+      : pipe(
+          // Dramatic dip so the visual axis reads unmistakably: 30% scale
+          // (compressed almost to a dot) and alpha 0 (fully transparent
+          // at the bottom of the dip). riseUp restores in 380ms.
+          visual.fallAway({ duration: 380, scaleTo: 0.3, alphaTo: 0 }),
+          wait(220),
+          visual.riseUp({ duration: 380, alphaFrom: 0, scaleFrom: 0.3 }),
+        );
     runner.run(effect, groupOfComponent(btn), btn);
   };
 
@@ -114,19 +134,8 @@ const buildSide = (
     fireEffect();
   });
 
-  // After fallAway has settled, give a "rise back" affordance — click
-  // the canvas (not the button) to riseUp. Mostly so users can re-
-  // trigger fallAway without reloading.
-  canvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    if (side === 'visual') {
-      runner.run(
-        pipe(visual.riseUp({ duration: 320 })),
-        groupOfComponent(btn),
-        btn,
-      );
-    }
-  });
+  // (riseUp affordance no longer needed — fireEffect now composes
+  // fallAway + wait + riseUp so each click is self-contained.)
 
   // Frame loop — independent rAF per side so a stalled GPU readback
   // can't block the other panel (not strictly needed here since both
@@ -166,7 +175,7 @@ export const mount = (root: HTMLElement): (() => void) => {
   head.innerHTML = `
     <span class="doc-eyebrow">EXPERIMENT · VISUAL ↔ PHYSICAL</span>
     <h1>visual.fallAway · the depth axis split</h1>
-    <p>Two buttons, two depth flavors. Left runs <code>popTo3D</code> — physical: per-particle <code>tz</code> + the z-spring integrator. Right runs <code>visual.fallAway</code> — scale toward centroid + alpha fade, pure 2D. Both produce a sense of receding; only one actually moves particles in z. The visual version works on every backend (CPU, GPU, future visionOS) without needing a z field on the GPU particle struct. Click each button. Right-click the right canvas to <code>riseUp</code>.</p>
+    <p>Two buttons, two ways to express the same gesture. Click either canvas — both do "recede, hold, return," repeatable. Left routes through the simulation pipeline (<code>popTo3D</code> writes per-particle <code>tz</code>; the z-spring integrator owns the in-between motion). Right is pure 2D animation (<code>visual.fallAway</code> + wait + <code>visual.riseUp</code> — scale toward centroid + alpha fade). Both produce a sense of depth on screen; the cost and composability differ. The visual version runs on every backend including future visionOS without a z field on the GPU particle struct.</p>
   `;
   root.appendChild(head);
 
@@ -180,9 +189,9 @@ export const mount = (root: HTMLElement): (() => void) => {
         <code data-fps="physical" style="font-size: 11px; opacity: 0.7;">…</code>
       </figure>
       <figure style="margin: 0; display: flex; flex-direction: column; gap: 6px;">
-        <figcaption style="font-size: 11px; letter-spacing: 0.10em; opacity: 0.75;">VISUAL · fallAway · scale + fade only</figcaption>
+        <figcaption style="font-size: 11px; letter-spacing: 0.10em; opacity: 0.75;">VISUAL · fallAway → wait → riseUp · 2D only</figcaption>
         <canvas data-side="visual" width="${W}" height="${H}" style="width: 100%; height: auto; background: #0c0d10; border-radius: 6px; cursor: pointer;"></canvas>
-        <code data-fps="visual" style="font-size: 11px; opacity: 0.7;">… · right-click to rise back</code>
+        <code data-fps="visual" style="font-size: 11px; opacity: 0.7;">…</code>
       </figure>
     </div>
   `;
