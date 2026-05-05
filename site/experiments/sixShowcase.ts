@@ -159,6 +159,13 @@ export const mount = (root: HTMLElement): (() => void) => {
     clickPerlinChance: number;
     particleSize: number;
     trailAlpha: number;
+    // Ambient perlin knobs — drive perlin force constants live via
+    // world.setForceConstants. Frequency stored as scale (1/frequency, in
+    // pixels per noise cycle) since "scale" reads more naturally as a knob.
+    ambientPerlinScale: number;     // pixels per cycle; set 50 = "loose swirl"
+    ambientPerlinSpeed: number;     // cycles per second (time evolution)
+    ambientPerlinStrength: number;  // peak velocity delta (px/s)
+    ambientPerlinOctaves: number;   // 1..3
   } = {
     rotXspeed: SHOWCASE.rotXspeed,
     rotYspeed: SHOWCASE.rotYspeed,
@@ -176,6 +183,10 @@ export const mount = (root: HTMLElement): (() => void) => {
     clickPerlinChance: SHOWCASE.clickPerlinChance,
     particleSize: SHOWCASE.particleSize,
     trailAlpha: SHOWCASE.trailAlpha,
+    ambientPerlinScale: 50,        // 50 px/cycle ≈ medium swirl
+    ambientPerlinSpeed: 0,          // frozen by default
+    ambientPerlinStrength: 0,       // off by default
+    ambientPerlinOctaves: 2,
   };
 
   // ─── DOM (fullscreen, no chrome) ────────────────────────────────────
@@ -708,6 +719,11 @@ export const mount = (root: HTMLElement): (() => void) => {
     top: '60px',
     left: '28px',
     width: '280px',
+    // Cap height to viewport minus the top offset and a comfortable bottom
+    // margin; overflow knobs scroll. Without this the panel ran off the
+    // bottom of the screen on shorter viewports as we kept adding knobs.
+    maxHeight: 'calc(100vh - 120px)',
+    overflowY: 'auto',
     padding: '18px 20px 22px',
     background: 'rgba(10, 10, 20, 0.78)',
     border: `1px solid ${ACID_ACCENT_DIM}`,
@@ -721,6 +737,9 @@ export const mount = (root: HTMLElement): (() => void) => {
     transition: 'transform 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
     pointerEvents: 'auto',
     userSelect: 'none',
+    // Acid-themed scrollbar so the panel doesn't break the dark glass look.
+    scrollbarWidth: 'thin',
+    scrollbarColor: `${ACID_ACCENT_DIM} transparent`,
   } satisfies Partial<CSSStyleDeclaration>);
   // @ts-expect-error WebkitBackdropFilter is non-standard but Safari needs it.
   panel.style.WebkitBackdropFilter = 'blur(14px) saturate(1.2)';
@@ -881,6 +900,52 @@ export const mount = (root: HTMLElement): (() => void) => {
       state.trailAlpha = v;
       const r = renderer as unknown as { setTrailAlpha?: (v: number) => void };
       r.setTrailAlpha?.(v);
+    },
+  });
+
+  // ── Ambient perlin force ─────────────────────────────────────────────
+  // perlin is now a regular force in the stack (Phase 2). These knobs drive
+  // its constants live via world.setForceConstants — the field is sampled
+  // every frame, so changes take effect immediately.
+  //
+  // Caveat: the auto-glitch (legacy applyPerlinGlitch shim) overrides
+  // perlin* during a burst, then restores prior values. So while a glitch
+  // is mid-flight, your panel-set strength is temporarily clobbered. The
+  // restore lands within ~120-320ms; "ambient strength" reasserts.
+  const writePerlin = (next: Partial<{ perlinFrequency: number; perlinSpeed: number; perlinStrength: number; perlinOctaves: number }>): void => {
+    if (!world) return;
+    world.setForceConstants(next);
+  };
+  makeKnob('perlin scale (px/cycle)', {
+    min: 8, max: 400, step: 2, value: state.ambientPerlinScale,
+    format: (v) => v.toFixed(0),
+    apply: (v) => {
+      state.ambientPerlinScale = v;
+      // Frequency = 1 / scale; smaller scale = higher frequency = tighter chaos.
+      writePerlin({ perlinFrequency: 1 / v });
+    },
+  });
+  makeKnob('perlin speed', {
+    min: 0, max: 2, step: 0.02, value: state.ambientPerlinSpeed,
+    apply: (v) => {
+      state.ambientPerlinSpeed = v;
+      writePerlin({ perlinSpeed: v });
+    },
+  });
+  makeKnob('perlin strength', {
+    min: 0, max: 800, step: 5, value: state.ambientPerlinStrength,
+    format: (v) => v.toFixed(0),
+    apply: (v) => {
+      state.ambientPerlinStrength = v;
+      writePerlin({ perlinStrength: v });
+    },
+  });
+  makeKnob('perlin octaves', {
+    min: 1, max: 3, step: 1, value: state.ambientPerlinOctaves,
+    format: (v) => v.toFixed(0),
+    apply: (v) => {
+      state.ambientPerlinOctaves = v;
+      writePerlin({ perlinOctaves: v });
     },
   });
 
@@ -1154,10 +1219,17 @@ export const mount = (root: HTMLElement): (() => void) => {
     }
     (world as WorldGPU).setParticles(ps);
     (world as WorldGPU).setAnchors3D(clouds.peace);
-    (world as WorldGPU).setForces(['drag', 'spring'], {
+    (world as WorldGPU).setForces(['drag', 'spring', 'perlin'], {
       drag: restFeel.drag,
       springK: restFeel.springK,
       springC: restFeel.springC,
+      // Perlin force in the stack; gated by perlinStrength=0 (default) so
+      // it's free until a control / glitch ramps strength. Frequency seeded
+      // to a sane mid-band; control panel + glitches override live.
+      perlinFrequency: 0.02,
+      perlinSpeed: 0,
+      perlinStrength: 0,
+      perlinOctaves: 2,
     });
     activeFeel = restFeel;
     feelLerpFrom = restFeel;

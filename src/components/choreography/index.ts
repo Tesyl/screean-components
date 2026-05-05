@@ -70,7 +70,9 @@ export { pulse, type PulseOpts } from './effects/pulse';
 export { flash, type FlashOpts } from './effects/flash';
 export { fade, type FadeOpts } from './effects/fade';
 // World primitives.
-export { perlinGlitch, type PerlinGlitchOpts } from './effects/perlinGlitch';
+export { animate, type AnimateOpts } from './effects/animate';
+// (perlinGlitch effect retired in Phase 4 — perlin is now a regular force
+//  on the world. Use animate({param: 'perlinStrength', ...}) for ramps.)
 // Compound recipes (built on top of atoms via collapsePipelineToEffect).
 export { dissolve, type DissolveOpts } from './effects/dissolve';
 export { popTo3D, type PopTo3DEffectOpts } from './effects/popTo3D';

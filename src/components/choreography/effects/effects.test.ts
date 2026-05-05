@@ -31,7 +31,6 @@ import { boundsRadiusOf, centroidOf } from './_geom';
 import { kick } from './kick';
 import { pop } from './pop';
 import { setColor } from './setColor';
-import { perlinGlitch } from './perlinGlitch';
 
 beforeAll(installOffscreenCanvasStub);
 afterAll(uninstallOffscreenCanvasStub);
@@ -186,70 +185,7 @@ describe('setColor', () => {
   });
 });
 
-describe('perlinGlitch', () => {
-  it('no-ops silently on a CPU world (no applyPerlinGlitch surface)', () => {
-    const { runner, btn } = setup();
-    runner.tick(0);
-    expect(() => {
-      runner.run(
-        pipe(
-          perlinGlitch({
-            amplitude: 10,
-            frequency: 0.02,
-            durationMs: 100,
-          }),
-        ),
-        groupOfComponent(btn),
-        btn,
-      );
-      runner.tick(0);
-    }).not.toThrow();
-  });
-
-  it('forwards opts to world.applyPerlinGlitch on a GPU-shaped world', () => {
-    const { runner, btn, world } = setup();
-    runner.tick(0);
-    // Inject a duck-typed applyPerlinGlitch onto the existing world. The
-    // perlinGlitch effect duck-types the surface; we don't need a real GPU.
-    const calls: unknown[] = [];
-    (world as unknown as { applyPerlinGlitch: (o: unknown) => void }).applyPerlinGlitch = (o) => {
-      calls.push(o);
-    };
-    runner.run(
-      pipe(
-        perlinGlitch({
-          amplitude: 25,
-          frequency: 0.03,
-          octaves: 2,
-          durationMs: 400,
-          seed: 7,
-        }),
-      ),
-      groupOfComponent(btn),
-      btn,
-    );
-    runner.tick(0);
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toMatchObject({
-      amplitude: 25,
-      frequency: 0.03,
-      octaves: 2,
-      durationMs: 400,
-      seed: 7,
-    });
-  });
-
-  it('completes after durationMs', () => {
-    const { runner, btn } = setup();
-    runner.tick(0);
-    const handle = runner.run(
-      pipe(perlinGlitch({ amplitude: 10, frequency: 0.02, durationMs: 200 })),
-      groupOfComponent(btn),
-      btn,
-    );
-    runner.tick(0);
-    expect(handle.done()).toBe(false);
-    runner.tick(200);
-    expect(handle.done()).toBe(true);
-  });
-});
+// perlinGlitch effect deleted in Phase 4 — perlin is an ordinary force in
+// the world's force stack. Replacement pattern: animate({param:
+// 'perlinStrength', from: 0, to: peak, duration: ms}). See
+// effects/animate.test.ts for the new contract.
