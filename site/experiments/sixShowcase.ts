@@ -756,6 +756,63 @@ export const mount = (root: HTMLElement): (() => void) => {
   } satisfies Partial<CSSStyleDeclaration>);
   panel.appendChild(panelHeader);
 
+  // Disturb button — fires per-particle independent velocity impulses
+  // through the IBinding bridge (P24). Distinct from a click impulse
+  // (which is radial-from-cursor); this one gives every particle its
+  // OWN angle and magnitude. The spring snaps everything back to the
+  // bound shape, producing a "dancing" feel because each particle
+  // takes its own crooked path home.
+  const disturbBtn = document.createElement('button');
+  disturbBtn.type = 'button';
+  disturbBtn.textContent = 'DISTURB';
+  Object.assign(disturbBtn.style, {
+    width: '100%',
+    padding: '10px 12px',
+    marginBottom: '14px',
+    background: 'transparent',
+    border: `1px solid ${ACID_ACCENT}`,
+    color: ACID_ACCENT,
+    fontFamily: 'inherit',
+    fontSize: '11px',
+    letterSpacing: '0.30em',
+    fontWeight: '700',
+    cursor: 'pointer',
+    borderRadius: '4px',
+    transition: 'background 120ms ease, color 120ms ease',
+  } satisfies Partial<CSSStyleDeclaration>);
+  disturbBtn.addEventListener('mouseenter', () => {
+    disturbBtn.style.background = ACID_ACCENT;
+    disturbBtn.style.color = '#000';
+  });
+  disturbBtn.addEventListener('mouseleave', () => {
+    disturbBtn.style.background = 'transparent';
+    disturbBtn.style.color = ACID_ACCENT;
+  });
+  // Per-particle scatter through the binding. Same idea as the new
+  // `scatter` choreography effect but inlined here because the
+  // showcase doesn't run a ChoreoRunner — it talks to the world
+  // directly.
+  const disturbAll = (): void => {
+    if (!world) return;
+    // The showcase always uses WorldGPU under the hood (see init()), but
+    // the IBinding contract works on either backend.
+    const n = (world as WorldGPU).count;
+    if (n === 0) return;
+    const indices: number[] = new Array(n);
+    const vxs = new Float32Array(n);
+    const vys = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      indices[i] = i;
+      const angle = Math.random() * Math.PI * 2;
+      const mag = 320 + Math.random() * 280;
+      vxs[i] = Math.cos(angle) * mag;
+      vys[i] = Math.sin(angle) * mag;
+    }
+    world.binding().setVelocityImpulse(indices, vxs, vys);
+  };
+  disturbBtn.addEventListener('click', disturbAll);
+  panel.appendChild(disturbBtn);
+
   // Knob factory — one row per tunable. Returns the input element so
   // callers can drive value updates from outside (e.g. reset).
   const makeKnob = (label: string, opts: {

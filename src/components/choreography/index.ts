@@ -52,6 +52,7 @@ export { easeToTargets, type EaseToTargetsOpts } from './effects/easeToTargets';
 export { pinToTargets } from './effects/pinToTargets';
 // Spatial primitives.
 export { kick, type KickOpts } from './effects/kick';
+export { scatter, type ScatterOpts } from './effects/scatter';
 export { pop, type PopOpts } from './effects/pop';
 // Spatial transforms.
 export { gather, type GatherOpts, type GatherTo } from './effects/gather';
