@@ -11,6 +11,8 @@
 import type { Particle, Scene } from 'screean';
 import type { Component } from '../types';
 import type { ChoreoWorld, Effect, EffectCtx } from './effect';
+import type { PointerTracker } from '../routing/pointerTracker';
+import type { FocusTracker } from '../routing/focusTracker';
 import type { Group, GroupCtx } from './group';
 import type { Pipeline } from './pipeline';
 
@@ -51,6 +53,10 @@ export type ChoreoRunner = {
   // Mostly useful for triggers that want to log or report timing.
   now: () => number;
   getParticles: () => Particle[];
+  // Read-only accessor for the deps the runner was constructed with —
+  // used by apply.ts:predicateForStateKey to read pointerTracker /
+  // focusTracker without making the deps fields public.
+  getDeps: () => Readonly<ChoreoRunnerDeps>;
   dispose: () => void;
 };
 
@@ -59,6 +65,11 @@ export type ChoreoRunnerDeps = {
   world: ChoreoWorld;
   particles: Particle[];
   mirrorHost: HTMLElement;
+  // Optional UX trackers — when present, state-trigger predicates can
+  // address them via `whileHovered` / `whileFocused`. Inert (always-false)
+  // when omitted.
+  pointerTracker?: PointerTracker;
+  focusTracker?: FocusTracker;
 };
 
 // Per-stage state tracked inside a handle. A stage is "started" once
@@ -79,6 +90,9 @@ const buildHandle = (
   indices: readonly number[],
   startNow: number,
   buildCtx: (stageT: number, stageDt: number, state: Record<string, unknown>) => EffectCtx,
+  // Optional per-tick resolver — present when group.mode === 'tick'. When
+  // set, every advance re-resolves indices so each stage sees fresh data.
+  resolveLive: (() => readonly number[]) | null = null,
 ): PipelineHandle => {
   // Pipeline stages share one state object per handle. This lets the recipe
   // pattern work (captureStarts writes a key, easeToTargets reads the same
@@ -98,6 +112,14 @@ const buildHandle = (
   const advance = (now: number): void => {
     if (cancelled) return;
     const elapsed = now - startNow;
+
+    // If the group requested per-tick resolution, refresh all stage runtimes'
+    // indices to the current snapshot. Single resolve per advance — every
+    // stage sees the same indices for this frame.
+    if (resolveLive) {
+      const fresh = resolveLive();
+      for (const r of runtimes) r.indices = fresh;
+    }
 
     for (const r of runtimes) {
       if (r.ended) continue;
@@ -172,7 +194,13 @@ export const createChoreoRunner = (deps: ChoreoRunnerDeps): ChoreoRunner => {
       scene: deps.scene,
       particles: deps.particles,
     };
-    const indices = group.resolve(groupCtx);
+    // Snapshot at run() for default 'run' mode. For 'tick' mode the handle
+    // re-resolves on every advance — passes a function instead of a
+    // fixed array so the resolution happens inside buildHandle's tick loop.
+    const initialIndices = group.resolve(groupCtx);
+    const resolveLive = group.mode === 'tick'
+      ? () => group.resolve(groupCtx)
+      : null;
 
     const buildCtx = (stageT: number, stageDt: number, state: Record<string, unknown>): EffectCtx => ({
       particles: deps.particles,
@@ -185,7 +213,7 @@ export const createChoreoRunner = (deps: ChoreoRunnerDeps): ChoreoRunner => {
       state,
     });
 
-    const handle = buildHandle(pipeline, indices, currentNow, buildCtx);
+    const handle = buildHandle(pipeline, initialIndices, currentNow, buildCtx, resolveLive);
     liveHandles.push(handle);
     return handle;
   };
@@ -222,6 +250,7 @@ export const createChoreoRunner = (deps: ChoreoRunnerDeps): ChoreoRunner => {
     attachTrigger,
     now: () => currentNow,
     getParticles: () => deps.particles,
+    getDeps: () => deps,
     dispose,
   };
 };

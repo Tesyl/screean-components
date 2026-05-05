@@ -13,10 +13,17 @@ import type { Component, ComponentHandlers } from '../types';
 import type { Pipeline } from './pipeline';
 import { onEvent, onState } from './trigger';
 
-// Predicate factory for state-trigger keys. v1 supports a small set; the
-// rest no-op to false (so the runner polls but never fires) until P14
-// adds the corresponding state axes.
+// Predicate factory for state-trigger keys. State sources:
+//   whilePressed / whileChecked  — read from component internals (always available)
+//   whileHovered                 — read from runner.getDeps().pointerTracker (opt-in)
+//   whileFocused                 — read from runner.getDeps().focusTracker (opt-in)
+//   whileDragging                — blocked on P14 (no `dragging` axis on internals yet)
+//
+// Predicates fall back to `() => false` when their source isn't wired up
+// — the runner still polls each tick but the predicate never flips, so
+// `onState` never fires. No errors, no surprises.
 const predicateForStateKey = (
+  runner: ChoreoRunner,
   c: Component,
   stateKey: string,
 ): (() => boolean) => {
@@ -25,7 +32,11 @@ const predicateForStateKey = (
       return () => Boolean(c._component.pressed);
     case 'whileChecked':
       return () => Boolean(c._component.checked);
-    // whileDragging / whileFocused — blocked on P14 (no internals axis yet).
+    case 'whileHovered':
+      return () => runner.getDeps().pointerTracker?.hovered === c;
+    case 'whileFocused':
+      return () => runner.getDeps().focusTracker?.focused === c;
+    // whileDragging — blocked on P14 (no `dragging` axis on internals yet).
     default:
       return () => false;
   }
@@ -48,7 +59,7 @@ export const applyDefaultChoreography = (
   for (const [key, value] of Object.entries(merged)) {
     if (key.startsWith('while')) {
       const paired = value as StatePair;
-      const predicate = predicateForStateKey(c, key);
+      const predicate = predicateForStateKey(runner, c, key);
       handles.push(onState(runner, c, predicate, paired));
     } else {
       handles.push(onEvent(runner, c, key as keyof ComponentHandlers, value as Pipeline));

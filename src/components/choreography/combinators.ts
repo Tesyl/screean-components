@@ -48,20 +48,44 @@ export function narrow(part: string, target: Effect | Pipeline): Effect | Pipeli
   return narrowEffect(part, target);
 }
 
-const narrowEffect = (part: string, inner: Effect): Effect => ({
-  scope: inner.scope,
-  duration: inner.duration,
-  tick: (indices, ctx) => {
-    const narrowed = resolveNarrow(part, indices, ctx);
-    inner.tick(narrowed, ctx);
-  },
-  onEnd: inner.onEnd
-    ? (indices, ctx) => {
-        const narrowed = resolveNarrow(part, indices, ctx);
-        inner.onEnd!(narrowed, ctx);
+// Each narrow() instance gets a unique cache key — same module-local seq
+// pattern as when() / animate() / recipes. Without this, two narrows of
+// different parts in the same pipeline would share `__narrow` and the
+// second narrow would use the first narrow's cached subset.
+let _narrowSeq = 0;
+
+const narrowEffect = (part: string, inner: Effect): Effect => {
+  const key = `__narrow_${_narrowSeq++}` as const;
+  return {
+    scope: inner.scope,
+    duration: inner.duration,
+    tick: (indices, ctx) => {
+      let cached = (ctx.state as Record<string, unknown>)[key] as
+        | readonly number[]
+        | undefined;
+      if (cached === undefined) {
+        cached = resolveNarrow(part, indices, ctx);
+        (ctx.state as Record<string, unknown>)[key] = cached;
       }
-    : undefined,
-});
+      inner.tick(cached, ctx);
+    },
+    onEnd: inner.onEnd
+      ? (indices, ctx) => {
+          // Reuse the cached subset if present (fast path); otherwise
+          // resolve once. onEnd may fire on cancel BEFORE any tick, so
+          // we can't assume the cache exists.
+          let cached = (ctx.state as Record<string, unknown>)[key] as
+            | readonly number[]
+            | undefined;
+          if (cached === undefined) {
+            cached = resolveNarrow(part, indices, ctx);
+            (ctx.state as Record<string, unknown>)[key] = cached;
+          }
+          inner.onEnd!(cached, ctx);
+        }
+      : undefined,
+  };
+};
 
 const resolveNarrow = (
   part: string,
