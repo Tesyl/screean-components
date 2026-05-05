@@ -77,6 +77,15 @@ export { animate, type AnimateOpts } from './effects/animate';
 // Compound recipes (built on top of atoms via collapsePipelineToEffect).
 export { dissolve, type DissolveOpts } from './effects/dissolve';
 export { popTo3D, type PopTo3DEffectOpts } from './effects/popTo3D';
+// Visual recipes (depth-as-illusion, distinct from physical depth).
+// Composes scale + fade — works on every backend, no z-axis required.
+export {
+  visual,
+  fallAway,
+  riseUp,
+  type FallAwayOpts,
+  type RiseUpOpts,
+} from './effects/visual';
 // Recipe builder — exported so user-defined recipes can use it too.
 export { collapsePipelineToEffect } from './effects/_recipe';
 

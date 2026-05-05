@@ -73,6 +73,13 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     load: () => import('./gpuEngine'),
   },
   {
+    name: 'visual-fallaway',
+    title: 'visual.fallaway — depth axis: visual vs physical',
+    blurb: "Two buttons, two depth flavors. Left runs popTo3D (physical: per-particle tz + z-spring). Right runs visual.fallAway (scale + fade only, no z). Both feel like receding; only one actually moves particles in z. The visual version works on every backend including future visionOS without a z field on the GPU struct.",
+    topics: ['visual.fallAway', 'popTo3D', 'depth-axis split', 'recipes'],
+    load: () => import('./visualFallAway'),
+  },
+  {
     name: 'p24-binding-parity',
     title: 'p24-binding-parity — IBinding bridge proof',
     blurb: "Same scene, two backends, side-by-side. scene.bindAll(world) writes per-leaf targets through world.binding() — direct mutation on CPU, queued sparse writes on GPU. The 'Disturb' button stomps velocities through the same IBinding contract; the spring pulls everything back. Visual identicality means the bridge holds.",
