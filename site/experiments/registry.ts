@@ -73,6 +73,13 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     load: () => import('./gpuEngine'),
   },
   {
+    name: 'p24-binding-parity',
+    title: 'p24-binding-parity — IBinding bridge proof',
+    blurb: "Same scene, two backends, side-by-side. scene.bindAll(world) writes per-leaf targets through world.binding() — direct mutation on CPU, queued sparse writes on GPU. The 'Disturb' button stomps velocities through the same IBinding contract; the spring pulls everything back. Visual identicality means the bridge holds.",
+    topics: ['IBinding', 'scene.bindAll', 'WorldGPU', 'cross-backend parity'],
+    load: () => import('./p24BindingParity'),
+  },
+  {
     name: 'six-showcase',
     title: 'six-showcase — fullscreen the6ixCollective demo',
     blurb: "Fullscreen presentation of the engine. Cycles between the 6ix logo, a sphere, and the the6ixCollective text — logo + sphere share a 2-axis rotation matrix, text faces the camera. Per-transition spring/drag presets vary the arrival feel; text mode flickers between fonts before settling. Every 10s a multi-band Perlin glitch burst kicks the field. Click to scatter. Esc to exit.",
