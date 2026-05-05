@@ -1022,6 +1022,32 @@ export const mount = (root: HTMLElement): (() => void) => {
   let glitchInterval: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
 
+  // ─── Local perlin burst registry ──────────────────────────────────────
+  // Replaces the legacy WorldGPU.applyPerlinGlitch shim. Each entry is
+  // a smoothstep envelope on `perlinStrength` over `durationS` seconds,
+  // peaking at `amp`. Multiple bursts SUM their envelopes (free upgrade
+  // over the engine shim's last-write-wins). Per-frame we compute the
+  // total burst contribution and add it to the ambient strength via
+  // world.setForceConstants — the perlin force kernel reads the result
+  // on every tick.
+  type Burst = { startT: number; durationS: number; amp: number };
+  const activeBursts: Burst[] = [];
+  // Wall-clock seconds reference — captured once per frame inside the
+  // rAF loop and used for envelope math. Keeping it local to a tick
+  // means burst expirations happen at predictable frame boundaries.
+  const triggerBurst = (amp: number, durationMs: number, delayMs = 0): void => {
+    const fire = (): void => {
+      if (disposed) return;
+      activeBursts.push({
+        startT: performance.now() / 1000,
+        durationS: Math.max(0, durationMs / 1000),
+        amp,
+      });
+    };
+    if (delayMs <= 0) fire();
+    else setTimeout(fire, delayMs);
+  };
+
   // Pre-baked clouds — populated at boot.
   const clouds: {
     logo: Float32Array;
@@ -1078,15 +1104,11 @@ export const mount = (root: HTMLElement): (() => void) => {
       kick: state.scatterKick * dpr,
       softness: SHOWCASE.scatterSoftness,
     });
-    // Lucky N% — chase the kick with a tiny perlin splash.
+    // Lucky N% — chase the kick with a tiny perlin splash. Frequency /
+    // octaves come from the panel's ambient settings now (no per-burst
+    // override — the burst rides ambient at peak amp instead).
     if (state.glitchEnabled && Math.random() < state.clickPerlinChance) {
-      (world as WorldGPU).applyPerlinGlitch({
-        amplitude: 240 * state.glitchAmpScale,
-        frequency: 0.018 * state.glitchFreqScale,
-        octaves: Math.min(1, state.glitchMaxOctaves),
-        durationMs: 220 * state.glitchDurationScale,
-        seed: (Math.random() * 0xffffffff) >>> 0,
-      });
+      triggerBurst(240 * state.glitchAmpScale, 220 * state.glitchDurationScale);
     }
     if (!firstClickHappened) {
       firstClickHappened = true;
@@ -1260,47 +1282,23 @@ export const mount = (root: HTMLElement): (() => void) => {
   // briefly with different (amp, freq, octaves) before the next stomps
   // it (last-write-wins inside WorldGPU). The chained timing creates a
   // recognisable 3-beat glitch that's distinct each time.
+  // 3-beat chained glitch. Each beat is a smoothstep envelope on
+  // perlinStrength via the local burst registry; multiple beats sum
+  // naturally, so overlapping envelopes blend rather than clobber.
+  // The legacy API also varied frequency / octaves per-beat — we drop
+  // that since the new perlin force has one global frequency. The
+  // amplitude + duration variation per beat carries the rhythmic feel.
   const triggerGlitch = (): void => {
     if (!world || world.backend !== 'gpu') return;
     if (!state.glitchEnabled) return;
-    const w = world as WorldGPU;
-    const seed1 = (Math.random() * 0xffffffff) >>> 0;
-    const seed2 = (Math.random() * 0xffffffff) >>> 0;
-    const seed3 = (Math.random() * 0xffffffff) >>> 0;
     const ampS = state.glitchAmpScale;
-    const freqS = state.glitchFreqScale;
     const durS = state.glitchDurationScale;
-    const octCap = state.glitchMaxOctaves;
-    // Beat 1 — fast, tight, low-amp shimmer
-    w.applyPerlinGlitch({
-      amplitude: (320 + Math.random() * 200) * ampS,
-      frequency: (0.020 + Math.random() * 0.012) * freqS,
-      octaves: Math.min(1, octCap),
-      durationMs: 120 * durS,
-      seed: seed1,
-    });
-    // Beat 2 — wider swirl, larger amp
-    setTimeout(() => {
-      if (disposed || !world || !state.glitchEnabled) return;
-      (world as WorldGPU).applyPerlinGlitch({
-        amplitude: (480 + Math.random() * 320) * ampS,
-        frequency: (0.006 + Math.random() * 0.008) * freqS,
-        octaves: Math.min(2, octCap),
-        durationMs: 180 * durS,
-        seed: seed2,
-      });
-    }, 130);
-    // Beat 3 — fine chaos, fast decay
-    setTimeout(() => {
-      if (disposed || !world || !state.glitchEnabled) return;
-      (world as WorldGPU).applyPerlinGlitch({
-        amplitude: (220 + Math.random() * 160) * ampS,
-        frequency: (0.030 + Math.random() * 0.020) * freqS,
-        octaves: Math.min(3, octCap),
-        durationMs: 100 * durS,
-        seed: seed3,
-      });
-    }, 320);
+    // Beat 1 — fast, tight, low-amp.
+    triggerBurst((320 + Math.random() * 200) * ampS, 120 * durS, 0);
+    // Beat 2 — wider, larger amp, mid-burst overlap.
+    triggerBurst((480 + Math.random() * 320) * ampS, 180 * durS, 130);
+    // Beat 3 — fine chaos, fast decay.
+    triggerBurst((220 + Math.random() * 160) * ampS, 100 * durS, 320);
   };
 
   // ─── Cycle state machine ───────────────────────────────────────────
@@ -1462,6 +1460,32 @@ export const mount = (root: HTMLElement): (() => void) => {
       // Snap REST_FEEL as the new "from" so future glides start clean.
       feelLerpFrom = restFeel;
       activeFeel = restFeel;
+    }
+
+    // Process active perlin bursts. Each burst contributes a smoothstep
+    // envelope on perlinStrength, summed and added to the panel's ambient
+    // strength. Expired bursts get spliced out. Net write of perlinStrength
+    // happens once per frame.
+    const ambient = state.ambientPerlinStrength;
+    let burstSum = 0;
+    if (activeBursts.length > 0) {
+      const nowS = now / 1000;
+      for (let i = activeBursts.length - 1; i >= 0; i--) {
+        const b = activeBursts[i];
+        const elapsed = nowS - b.startT;
+        if (elapsed >= b.durationS) {
+          activeBursts.splice(i, 1);
+          continue;
+        }
+        const halfD = Math.max(1e-6, b.durationS * 0.5);
+        const dist = Math.abs(elapsed - halfD) / halfD;
+        const tri = 1 - dist;
+        const env = tri * tri * (3 - 2 * tri);
+        burstSum += env * b.amp;
+      }
+    }
+    if (burstSum > 0 || ambient > 0 || activeBursts.length > 0) {
+      w.setForceConstants({ perlinStrength: ambient + burstSum });
     }
 
     // Step physics + render.
