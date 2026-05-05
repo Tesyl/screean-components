@@ -794,17 +794,20 @@ export const mount = (root: HTMLElement): (() => void) => {
   // directly.
   const disturbAll = (): void => {
     if (!world) return;
-    // The showcase always uses WorldGPU under the hood (see init()), but
-    // the IBinding contract works on either backend.
     const n = (world as WorldGPU).count;
     if (n === 0) return;
+    // Magnitude tuning: at 500k particles + springK=60, anything above
+    // ~200 px/s reads as "explode and reset to original shape" because
+    // the spring snaps them back faster than the eye can resolve the
+    // motion. Low magnitudes (60–160) read as a dance INSIDE the
+    // silhouette — particles wiggle without leaving the shape.
     const indices: number[] = new Array(n);
     const vxs = new Float32Array(n);
     const vys = new Float32Array(n);
     for (let i = 0; i < n; i++) {
       indices[i] = i;
       const angle = Math.random() * Math.PI * 2;
-      const mag = 320 + Math.random() * 280;
+      const mag = 60 + Math.random() * 140;
       vxs[i] = Math.cos(angle) * mag;
       vys[i] = Math.sin(angle) * mag;
     }
