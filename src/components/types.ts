@@ -194,6 +194,10 @@ export type ComponentOpts = InteractiveOpts & {
   // is the numeric range axis for sliders) so the two state surfaces don't
   // collide on a single component.
   textValue?: string;
+  // Initial drag state — slider sets this `false` at construction so the
+  // dragging axis is tracked. `undefined` (default) = component is not
+  // draggable; the `whileDragging` predicate stays inert.
+  dragging?: boolean;
 };
 
 // A component IS a SceneNode. The internals live under `_component`; regular
@@ -213,6 +217,13 @@ export type ComponentInternals = {
   disabled: boolean;
   pressed: boolean | undefined;
   checked: boolean | 'mixed' | undefined;
+  // Drag state — true while a pointer is held down on the component.
+  // Sliders flip this on pointerdown/up so choreography's `whileDragging`
+  // predicate can light up. `undefined` = component is not draggable
+  // and the state isn't tracked. Mutated at runtime via
+  // setComponentInternals (component.ts) — same swap-the-frozen-ref
+  // pattern triggers use.
+  dragging: boolean | undefined;
   // CSS font shorthand — captured so the DOM mirror inlines it and the
   // rendered DOM text matches the particle-rendered text size/family.
   // Undefined when the consumer didn't set one (mirror falls back to CSS).

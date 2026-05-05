@@ -64,6 +64,7 @@ export const component = (
     // component as a toggle/checkbox to screen readers.
     pressed: opts.pressed,
     checked: opts.checked,
+    dragging: opts.dragging,
     font: opts.font,
     width: opts.width,
     height: opts.height,
@@ -76,6 +77,25 @@ export const component = (
   });
   (node as Component)._component = internals;
   return node as Component;
+};
+
+// Mutate runtime-tracked internal state (currently `dragging`; `pressed`
+// for transient hold-state if a consumer wants live tracking). Preserves
+// the immutability contract by replacing the entire `_component` object
+// with a new frozen one — same pattern triggers use to wrap handlers.
+//
+// Don't reach for this for STATIC state changes (e.g. flipping `checked`
+// on a toggle): those still go through "rebuild the component, re-bind
+// the scene." This helper is for transient axes (dragging, pressed) the
+// pointer / focus runtime needs to flip without a rebuild.
+export const setComponentInternals = (
+  c: Component,
+  next: Partial<Pick<ComponentInternals, 'dragging' | 'pressed'>>,
+): void => {
+  c._component = Object.freeze({
+    ...c._component,
+    ...next,
+  });
 };
 
 // Walk up from any SceneNode (typically a hit-test result leaf) until finding

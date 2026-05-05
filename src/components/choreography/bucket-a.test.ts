@@ -224,6 +224,71 @@ describe('narrow caching (A3)', () => {
   });
 });
 
+describe('whileDragging (P14)', () => {
+  it('flips on slider pointerdown and back on pointerup', () => {
+    const sli = slider({ value: 0.5, onChange: () => {} });
+    const { s, w } = setup(sli as unknown as ReturnType<typeof button>);
+    const runner = createChoreoRunner({
+      scene: s, world: w, particles: w.particles,
+      mirrorHost: document.createElement('div'),
+    });
+
+    let enterFired = 0;
+    let exitFired = 0;
+    const enterFx: Effect = defineEffect<EffectState>({
+      scope: 'particle', duration: 0, tick: () => { enterFired++; },
+    });
+    const exitFx: Effect = defineEffect<EffectState>({
+      scope: 'particle', duration: 0, tick: () => { exitFired++; },
+    });
+
+    applyDefaultChoreography(runner, sli, {
+      whileDragging: { enter: pipe(enterFx), exit: pipe(exitFx) },
+    });
+
+    runner.tick(0);
+    expect(enterFired).toBe(0);
+
+    // Simulate pointerdown by invoking the wrapped handler — the slider
+    // factory wraps the consumer's onPointerDown to flip `dragging` first.
+    const ev = { x: 0, y: 0 } as Parameters<NonNullable<typeof sli._component.handlers.onPointerDown>>[0];
+    sli._component.handlers.onPointerDown!(ev);
+    runner.tick(16);
+    expect(sli._component.dragging).toBe(true);
+    expect(enterFired).toBe(1);
+    expect(exitFired).toBe(0);
+
+    sli._component.handlers.onPointerUp!(ev);
+    runner.tick(32);
+    expect(sli._component.dragging).toBe(false);
+    expect(exitFired).toBe(1);
+  });
+
+  it('predicate stays inert for a button (no `dragging` axis)', () => {
+    const btn = button({ label: 'Btn', onClick: () => {} });
+    const { s, w } = setup(btn);
+    const runner = createChoreoRunner({
+      scene: s, world: w, particles: w.particles,
+      mirrorHost: document.createElement('div'),
+    });
+
+    let fired = 0;
+    const fx: Effect = defineEffect<EffectState>({
+      scope: 'particle', duration: 0, tick: () => { fired++; },
+    });
+
+    applyDefaultChoreography(runner, btn, {
+      whileDragging: { enter: pipe(fx), exit: pipe(fx) },
+    });
+    runner.tick(0);
+    runner.tick(16);
+    // Button doesn't initialize `dragging` → stays undefined → predicate
+    // never returns true → trigger never fires.
+    expect(btn._component.dragging).toBeUndefined();
+    expect(fired).toBe(0);
+  });
+});
+
 describe('group per-tick mode (A4)', () => {
   it("default mode is 'run' — indices snapshot once at run()", () => {
     const btn = button({ label: 'PT', onClick: () => {} });

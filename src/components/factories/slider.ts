@@ -15,7 +15,7 @@ import {
   roundedRectField,
   type SceneNode,
 } from 'screean';
-import { component } from '../component';
+import { component, setComponentInternals } from '../component';
 import { setPart } from '../choreography/parts';
 import type {
   Component,
@@ -93,7 +93,30 @@ export const slider = (opts: SliderOpts): Component => {
   thumb.parent = container;
   container.intrinsic = { x: 0, y: 0, w: width, h: height };
 
-  return component(container, {
+  // Forward-declared so the wrapped pointer handlers can close over the
+  // component reference (assigned to right after `component()` returns).
+  let c!: Component;
+  // Wrap pointer handlers to flip `dragging` for the choreography
+  // `whileDragging` predicate. The consumer's handler runs AFTER the
+  // flip so it can read the new state. We also clear on pointerleave so
+  // that "pointerdown → drag off the slider → release elsewhere" doesn't
+  // leave dragging stuck true.
+  const onPointerDownWrapped: Handler = (ev) => {
+    setComponentInternals(c, { dragging: true });
+    opts.onPointerDown?.(ev);
+  };
+  const onPointerUpWrapped: Handler = (ev) => {
+    setComponentInternals(c, { dragging: false });
+    opts.onPointerUp?.(ev);
+  };
+  const onPointerLeaveWrapped: Handler = (ev) => {
+    if (c._component.dragging) {
+      setComponentInternals(c, { dragging: false });
+    }
+    opts.onPointerLeave?.(ev);
+  };
+
+  c = component(container, {
     id: opts.id,
     ariaRole: opts.ariaRole ?? 'slider',
     ariaLabel: opts.ariaLabel ?? `slider ${Math.round(t * 100)}%`,
@@ -101,10 +124,14 @@ export const slider = (opts: SliderOpts): Component => {
     value,
     min,
     max,
+    // Initialize `dragging: false` so the axis is tracked from the start.
+    // `undefined` would leave the predicate inert.
+    dragging: false,
     onClick: opts.onChange,
     onPointerEnter: opts.onPointerEnter,
-    onPointerLeave: opts.onPointerLeave,
-    onPointerDown: opts.onPointerDown,
-    onPointerUp: opts.onPointerUp,
+    onPointerLeave: onPointerLeaveWrapped,
+    onPointerDown: onPointerDownWrapped,
+    onPointerUp: onPointerUpWrapped,
   });
+  return c;
 };

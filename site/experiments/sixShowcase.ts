@@ -183,9 +183,9 @@ export const mount = (root: HTMLElement): (() => void) => {
     clickPerlinChance: SHOWCASE.clickPerlinChance,
     particleSize: SHOWCASE.particleSize,
     trailAlpha: SHOWCASE.trailAlpha,
-    ambientPerlinScale: 50,        // 50 px/cycle ≈ medium swirl
-    ambientPerlinSpeed: 0,          // frozen by default
-    ambientPerlinStrength: 0,       // off by default
+    ambientPerlinScale: 50,         // 50 px/cycle ≈ medium swirl
+    ambientPerlinSpeed: 0.12,       // slow breathing — full cycle every ~8s
+    ambientPerlinStrength: 35,      // gentle background drift; bursts ride on top
     ambientPerlinOctaves: 2,
   };
 
@@ -936,8 +936,10 @@ export const mount = (root: HTMLElement): (() => void) => {
     min: 0, max: 800, step: 5, value: state.ambientPerlinStrength,
     format: (v) => v.toFixed(0),
     apply: (v) => {
+      // Don't write perlinStrength here — the per-frame loop writes
+      // `ambient + burstSum` every tick and would clobber any direct
+      // write within one frame anyway.
       state.ambientPerlinStrength = v;
-      writePerlin({ perlinStrength: v });
     },
   });
   makeKnob('perlin octaves', {
@@ -1245,13 +1247,14 @@ export const mount = (root: HTMLElement): (() => void) => {
       drag: restFeel.drag,
       springK: restFeel.springK,
       springC: restFeel.springC,
-      // Perlin force in the stack; gated by perlinStrength=0 (default) so
-      // it's free until a control / glitch ramps strength. Frequency seeded
-      // to a sane mid-band; control panel + glitches override live.
-      perlinFrequency: 0.02,
-      perlinSpeed: 0,
-      perlinStrength: 0,
-      perlinOctaves: 2,
+      // Perlin force in the stack; seeded from the ambient state defaults
+      // so the showcase opens with breathing-cloud feel. Bursts in the
+      // per-frame loop sum on top of `ambientPerlinStrength`. Knob drags
+      // overwrite via writePerlin().
+      perlinFrequency: 1 / state.ambientPerlinScale,
+      perlinSpeed: state.ambientPerlinSpeed,
+      perlinStrength: state.ambientPerlinStrength,
+      perlinOctaves: state.ambientPerlinOctaves,
     });
     activeFeel = restFeel;
     feelLerpFrom = restFeel;
