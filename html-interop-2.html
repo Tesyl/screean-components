@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>screean · html-in-canvas interop · v2 (feels.taut)</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #06050d;
+        overflow: hidden;
+      }
+
+      .world-behind {
+        position: fixed;
+        inset: -20%;
+        z-index: 0;
+        background:
+          radial-gradient(circle at 30% 40%, rgba(140, 100, 255, 0.35), transparent 40%),
+          radial-gradient(circle at 70% 60%, rgba(100, 180, 255, 0.30), transparent 45%),
+          radial-gradient(circle at 50% 80%, rgba(255, 160, 200, 0.15), transparent 50%);
+        filter: blur(40px) saturate(1.2);
+        animation: drift 90s linear infinite;
+      }
+      @keyframes drift {
+        0%   { transform: rotate(0deg) scale(1); }
+        50%  { transform: rotate(180deg) scale(1.1); }
+        100% { transform: rotate(360deg) scale(1); }
+      }
+
+      #portal {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      /* Mount for the rasterizable button. Plain DOM — no layoutsubtree,
+         no flags. Positioned centered via JS once the button's real size is
+         known. Kept above #portal so the user can click it. */
+      #mount {
+        position: fixed;
+        z-index: 2;
+        pointer-events: auto;
+      }
+
+      .hint {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: rgba(220, 220, 240, 0.45);
+        pointer-events: none;
+        user-select: none;
+        z-index: 10;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+      .hint kbd {
+        font-family: inherit;
+        font-size: 9px;
+        padding: 1px 5px;
+        margin: 0 2px;
+        border-radius: 3px;
+        background: rgba(220, 220, 240, 0.08);
+        border: 1px solid rgba(220, 220, 240, 0.2);
+        color: rgba(220, 220, 240, 0.7);
+      }
+
+      .status {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 50;
+        padding: 6px 12px;
+        background: rgba(12, 10, 24, 0.5);
+        backdrop-filter: blur(18px) saturate(1.2);
+        border: 1px solid rgba(180, 180, 230, 0.08);
+        border-radius: 8px;
+        color: rgba(200, 210, 240, 0.75);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        pointer-events: none;
+        user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="world-behind" aria-hidden="true"></div>
+    <canvas id="portal"></canvas>
+    <div id="mount"></div>
+    <div id="status" class="status">booting…</div>
+    <div class="hint">
+      click the button · it dissolves into particles · move mouse away to reform
+    </div>
+    <script type="module" src="/src/demos/html-interop-2/main.tsx"></script>
+  </body>
+</html>

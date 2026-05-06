@@ -74,6 +74,7 @@ export default defineConfig({
         main: path.resolve(__dirname, 'index.html'),
         legacyDemo: path.resolve(__dirname, 'legacy-demo.html'),
         htmlInterop: path.resolve(__dirname, 'html-interop.html'),
+        htmlInterop2: path.resolve(__dirname, 'html-interop-2.html'),
         components: path.resolve(__dirname, 'components.html'),
         routing: path.resolve(__dirname, 'routing-demo.html'),
       },
