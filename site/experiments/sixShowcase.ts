@@ -629,7 +629,7 @@ export const mount = (root: HTMLElement): (() => void) => {
     pointerEvents: 'none',
     transition: 'opacity 0.6s ease',
   } satisfies Partial<CSSStyleDeclaration>);
-  hint.textContent = 'click to kick · f fullscreen · m controls · esc to exit';
+  hint.textContent = 'drag to disturb · t to cycle modes · f fullscreen · m controls · esc to exit';
   host.appendChild(hint);
 
   // Brand mark (top-left).
@@ -1146,6 +1146,15 @@ export const mount = (root: HTMLElement): (() => void) => {
   const cursor = { x: 0, y: 0 };
   let firstClickHappened = false;
 
+  // ─── Drag-modes system (T cycles, drag activates) ─────────────────────
+  // Hold the pointer down anywhere → continuous force at cursor for the
+  // current mode. T cycles modes. Release → forces stop, world goes back
+  // to springs + drag + perlin.
+  type DragMode = 'kick' | 'attract' | 'swirl' | 'gravity';
+  const DRAG_MODES: readonly DragMode[] = ['kick', 'attract', 'swirl', 'gravity'] as const;
+  let dragMode: DragMode = 'kick';
+  let dragging = false;
+
 
   const PARTICLE_CAP = Math.min(
     SHOWCASE.particleCount,
@@ -1161,20 +1170,83 @@ export const mount = (root: HTMLElement): (() => void) => {
     cursor.x = e.clientX * dpr;
     cursor.y = e.clientY * dpr;
     if (!world || world.backend !== 'gpu') return;
-    (world as WorldGPU).applyRadialImpulse({
-      origin: { x: cursor.x, y: cursor.y },
-      kick: state.scatterKick * dpr,
-      softness: SHOWCASE.scatterSoftness,
-    });
-    // Lucky N% — chase the kick with a tiny perlin splash. Frequency /
-    // octaves come from the panel's ambient settings now (no per-burst
-    // override — the burst rides ambient at peak amp instead).
+    // Initial kick on press for the same-as-before "click feels punchy"
+    // sensation. The per-frame loop then keeps applying the current
+    // dragMode's force while the pointer is held.
+    dragging = true;
+    canvas.setPointerCapture?.(e.pointerId);
+    applyDragForce(dragMode, 1 / 60); // first-frame impulse
     if (state.glitchEnabled && Math.random() < state.clickPerlinChance) {
       triggerBurst(240 * state.glitchAmpScale, 220 * state.glitchDurationScale);
     }
     if (!firstClickHappened) {
       firstClickHappened = true;
       hint.style.opacity = '0';
+    }
+  };
+  const onPointerUp = (e: PointerEvent): void => {
+    dragging = false;
+    canvas.releasePointerCapture?.(e.pointerId);
+  };
+  // Apply the current dragMode's force at the cursor for one frame.
+  // Called from the per-frame tick while `dragging` is true. dt is in
+  // seconds — used to scale per-frame contribution so behavior is
+  // framerate-independent.
+  const applyDragForce = (mode: DragMode, dt: number): void => {
+    if (!world || world.backend !== 'gpu') return;
+    const w = world as WorldGPU;
+    const x = cursor.x;
+    const y = cursor.y;
+    switch (mode) {
+      case 'kick': {
+        // Continuous radial impulse outward from cursor. Gentler than a
+        // single click-kick because it accumulates per frame.
+        w.applyRadialImpulse({
+          origin: { x, y },
+          kick: state.scatterKick * dpr * dt * 6,
+          softness: SHOWCASE.scatterSoftness,
+        });
+        break;
+      }
+      case 'attract': {
+        // Negative kick → particles pulled TOWARD cursor.
+        w.applyRadialImpulse({
+          origin: { x, y },
+          kick: -state.scatterKick * dpr * dt * 4,
+          softness: SHOWCASE.scatterSoftness,
+        });
+        break;
+      }
+      case 'swirl': {
+        // Origin offset perpendicular to (particle - cursor) direction
+        // is impossible without per-particle math; we approximate
+        // by alternating radial and tangential through phase. Cheap
+        // proxy: combine a mild attractor with an orbital "kick" from
+        // an offset point. The visual reads as swirl around cursor.
+        const phase = (performance.now() / 240) % (Math.PI * 2);
+        const r = state.scatterKick * dpr * dt * 3;
+        w.applyRadialImpulse({
+          origin: {
+            x: x + Math.cos(phase) * 80 * dpr,
+            y: y + Math.sin(phase) * 80 * dpr,
+          },
+          kick: r,
+          softness: SHOWCASE.scatterSoftness * 1.5,
+        });
+        break;
+      }
+      case 'gravity': {
+        // Origin far above the canvas → particles pushed away from it
+        // = downward. softness very low → ~uniform magnitude across
+        // the visible area. Cursor x is the gravity-well x so dragging
+        // left/right shifts where things rain down.
+        w.applyRadialImpulse({
+          origin: { x, y: -10000 * dpr },
+          kick: state.scatterKick * dpr * dt * 0.2,
+          softness: 0.0001,
+        });
+        break;
+      }
     }
   };
   const onKeyDown = (e: KeyboardEvent): void => {
@@ -1195,10 +1267,27 @@ export const mount = (root: HTMLElement): (() => void) => {
     } else if (e.key === 'f' || e.key === 'F') {
       if (e.target instanceof HTMLInputElement) return;
       toggleFullscreen();
+    } else if (e.key === 't' || e.key === 'T') {
+      if (e.target instanceof HTMLInputElement) return;
+      // Cycle drag modes: kick → attract → swirl → gravity → kick.
+      const i = DRAG_MODES.indexOf(dragMode);
+      dragMode = DRAG_MODES[(i + 1) % DRAG_MODES.length];
+      // Surface the new mode briefly via the hint line so users get
+      // feedback without needing the panel open.
+      hint.textContent = `drag mode: ${dragMode.toUpperCase()} · t to cycle`;
+      hint.style.opacity = '1';
+      // Fade the hint back out after a moment.
+      window.clearTimeout(hintFadeTimer);
+      hintFadeTimer = window.setTimeout(() => {
+        hint.style.opacity = '0';
+      }, 1400);
     }
   };
+  let hintFadeTimer = 0;
   canvas.addEventListener('pointermove', onPointerMove);
   canvas.addEventListener('pointerdown', onPointerDown);
+  canvas.addEventListener('pointerup', onPointerUp);
+  canvas.addEventListener('pointercancel', onPointerUp);
   window.addEventListener('keydown', onKeyDown);
   const onResize = () => applySize();
   window.addEventListener('resize', onResize);
@@ -1551,6 +1640,12 @@ export const mount = (root: HTMLElement): (() => void) => {
       w.setForceConstants({ perlinStrength: ambient + burstSum });
     }
 
+    // While dragging, fire the current drag-mode force at the cursor
+    // every frame. Particles get a continuous push/pull/swirl/fall.
+    // Releasing the pointer flips `dragging` off and the world goes
+    // back to spring + drag + perlin baseline.
+    if (dragging) applyDragForce(dragMode, dt);
+
     // Step physics + render.
     world.tick(dt);
     await renderWorld(renderer, world, canvas.width, canvas.height);
@@ -1580,8 +1675,11 @@ export const mount = (root: HTMLElement): (() => void) => {
     ro.disconnect();
     canvas.removeEventListener('pointermove', onPointerMove);
     canvas.removeEventListener('pointerdown', onPointerDown);
+    canvas.removeEventListener('pointerup', onPointerUp);
+    canvas.removeEventListener('pointercancel', onPointerUp);
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('resize', onResize);
+    window.clearTimeout(hintFadeTimer);
     if (world && world.backend === 'gpu') {
       (world as WorldGPU).destroy();
     }
