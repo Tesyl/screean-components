@@ -14,6 +14,7 @@ import { renderLanding } from './pages/landing';
 import { renderComponents } from './pages/components';
 import { renderExperimentsIndex, renderExperiment } from './pages/experiments';
 import { renderLabIndex, renderLabStory } from './pages/lab';
+import { renderMoonshot } from './pages/moonshot/mount';
 
 let teardown: (() => void) | null = null;
 // Generation counter — async experiment renders need to know whether
@@ -49,6 +50,10 @@ const render = async (r: Route): Promise<void> => {
   }
   if (r.kind === 'lab-story') {
     teardown = renderLabStory(r.name);
+    return;
+  }
+  if (r.kind === 'moonshot') {
+    teardown = renderMoonshot(r.screen);
     return;
   }
   // r.kind === 'experiment' — lazy-load and mount.
