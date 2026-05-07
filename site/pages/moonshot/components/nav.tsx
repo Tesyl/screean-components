@@ -13,6 +13,7 @@ const ITEMS: ReadonlyArray<{ id: MoonshotScreenId; label: string }> = [
   { id: 'horizon', label: 'Horizon' },
   { id: 'atlas',   label: 'Atlas' },
   { id: 'signal',  label: 'Signal' },
+  { id: 'test',    label: 'Test' },
 ];
 
 export const NavBar = (): ReactNode => {

@@ -17,12 +17,14 @@ const PATH_FOR: Record<MoonshotScreenId, string> = {
   horizon: '/moonshot',
   atlas:   '/moonshot/atlas',
   signal:  '/moonshot/signal',
+  test:    '/moonshot/test',
 };
 
 const SCREEN_FOR_PATH = (p: string): MoonshotScreenId => {
   const clean = p.replace(/\/+$/, '') || '/';
   if (clean === '/moonshot/atlas') return 'atlas';
   if (clean === '/moonshot/signal') return 'signal';
+  if (clean === '/moonshot/test') return 'test';
   return 'horizon';
 };
 

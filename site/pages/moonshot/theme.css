@@ -275,6 +275,85 @@
   transform: translateY(0);
 }
 
+/* Placeholder panel — shows on horizon/atlas/signal until those screens
+   are rewritten DOM-first. Centered, restrained, links to the test page. */
+.moonshot-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 0 32px;
+  z-index: 3;
+  pointer-events: auto;
+  text-align: center;
+}
+.moonshot-placeholder__eyebrow {
+  font-family: var(--m-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  color: var(--m-amber);
+  text-transform: uppercase;
+  margin: 0;
+}
+.moonshot-placeholder__title {
+  font-family: var(--m-font-display);
+  font-weight: 400;
+  font-size: 56px;
+  line-height: 1.05;
+  color: var(--m-starlight);
+  margin: 0;
+  max-width: 720px;
+}
+.moonshot-placeholder__body {
+  font-family: var(--m-font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--m-muted);
+  margin: 0;
+  max-width: 540px;
+}
+.moonshot-placeholder__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 12px 22px;
+  font-family: var(--m-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--m-starlight);
+  text-decoration: none;
+  border: 1px solid var(--m-border);
+  border-radius: 8px;
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+.moonshot-placeholder__link:hover {
+  color: var(--m-amber);
+  border-color: var(--m-amber);
+  background: rgba(255, 176, 102, 0.04);
+}
+
+/* Test-page hint — centered horizontally between the two side-by-side
+   buttons. Sits below the button row so it doesn't get eaten by particles. */
+.moonshot-test-hint {
+  position: absolute;
+  top: calc(50% + 80px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--m-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--m-muted);
+  text-transform: uppercase;
+  margin: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
 /* Visually-hidden semantics — kept in the a11y tree, removed from view. */
 .moonshot-vh {
   position: absolute;

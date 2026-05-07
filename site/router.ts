@@ -19,7 +19,7 @@ import { DEFAULT_THEME, type ThemeId } from './themes';
 // Moonshot screen ids. The React app inside /moonshot owns its own state
 // machine; we surface the screen here only so the outer SPA router can pass
 // it down on first mount and so direct deep-links land on the right screen.
-export type MoonshotScreen = 'horizon' | 'atlas' | 'signal';
+export type MoonshotScreen = 'horizon' | 'atlas' | 'signal' | 'test';
 
 export type Route =
   | { kind: 'landing'; theme: ThemeId }
@@ -38,6 +38,7 @@ export const resolveRoute = (pathname: string): Route => {
   if (clean === '/moonshot') return { kind: 'moonshot', screen: 'horizon' };
   if (clean === '/moonshot/atlas') return { kind: 'moonshot', screen: 'atlas' };
   if (clean === '/moonshot/signal') return { kind: 'moonshot', screen: 'signal' };
+  if (clean === '/moonshot/test') return { kind: 'moonshot', screen: 'test' };
   // /experiments/<name> — the name segment is whatever follows the slash.
   // We accept any non-empty path safe character; the experiment registry is
   // the authority on which names actually mount.

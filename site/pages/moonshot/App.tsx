@@ -5,8 +5,9 @@
 //   • One mounted Screen at a time, swapped by the route
 //
 // The Canvas survives across screen changes — only the screen subtree
-// remounts, and the canvas runs an atomic dismiss → bind transition under
-// the hood.
+// remounts. Cross-screen choreography (horizon → atlas, etc.) is queued
+// behind the /moonshot/test proof; until that lands, screens are real
+// React pages with no inter-screen particle handoff.
 
 import type { ReactNode } from 'react';
 import './theme.css';
@@ -16,13 +17,15 @@ import { NavBar } from './components/nav';
 import { Horizon } from './screens/horizon';
 import { Atlas } from './screens/atlas';
 import { Signal } from './screens/signal';
+import { Test } from './screens/test';
 import type { MoonshotScreenId } from './constant';
 
 const Screen = (): ReactNode => {
   const { screen } = useRoute();
   if (screen === 'horizon') return <Horizon />;
   if (screen === 'atlas')   return <Atlas />;
-  return <Signal />;
+  if (screen === 'signal')  return <Signal />;
+  return <Test />;
 };
 
 const Coords = (): ReactNode => {
@@ -31,9 +34,10 @@ const Coords = (): ReactNode => {
   // line — tag, slash, status — to make the chrome feel like an active
   // console rather than static decoration.
   const lines: Record<typeof screen, [string, string, string]> = {
-    horizon: ['HORIZON',  '47°N · DRIFT',         'POOL READY'],
-    atlas:   ['ATLAS',    '3 WORLDS · ONE POOL',  'HOVER TO INSPECT'],
-    signal:  ['SIGNAL',   'CHANNEL OPEN',         'AWAITING COMPOSE'],
+    horizon: ['HORIZON',  '47°N · DRIFT',         'AWAITING REWRITE'],
+    atlas:   ['ATLAS',    '3 WORLDS · ONE POOL',  'AWAITING REWRITE'],
+    signal:  ['SIGNAL',   'CHANNEL OPEN',         'AWAITING REWRITE'],
+    test:    ['TEST',     'DOM ⇄ PARTICLES',      'feels.taut · LIVE'],
   };
   const [tag, line, status] = lines[screen];
   return (
@@ -46,11 +50,9 @@ const Coords = (): ReactNode => {
 
 const Hint = (): ReactNode => {
   const { screen } = useRoute();
-  const label = screen === 'horizon'
-    ? <>move · the cloud follows · <kbd>tab</kbd> for buttons</>
-    : screen === 'atlas'
-      ? <>hover a world · click anywhere to return</>
-      : <>type — particles will rasterize · <kbd>↩</kbd> to transmit</>;
+  const label = screen === 'test'
+    ? <>click the button — it dissolves and reforms as the other</>
+    : <>this screen is being rebuilt — try <kbd>/moonshot/test</kbd></>;
   return <div className="moonshot-hint" aria-hidden="true">{label}</div>;
 };
 
