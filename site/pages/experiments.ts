@@ -40,7 +40,9 @@ export const renderExperimentsIndex = (): (() => void) => {
   EXPERIMENTS.forEach((e, i) => {
     const card = document.createElement('a');
     card.className = 'surface-card experiment-card';
-    card.href = `/experiments/${e.name}`;
+    // Internals route through /experiments/<name>; externals link out to
+    // their own SPA route (or absolute URL) declared in the registry.
+    card.href = e.kind === 'external' ? e.href : `/experiments/${e.name}`;
     card.innerHTML = `
       <div class="experiment-card-num">${String(i + 1).padStart(2, '0')}</div>
       <h3 class="experiment-card-title">${e.title}</h3>

@@ -1,36 +1,62 @@
 // Experiment registry. Each entry is a self-contained demo of one or more
-// component primitives, mounted at /experiments/<name>.
+// component primitives, surfaced from /experiments.
 //
-// An Experiment is a simple contract:
-//   - `mount(root)` builds the demo into `root` (the page's #app element).
-//   - The function returns a `teardown()` callback that disposes any
-//     stages, intervals, or RAF tickers it created.
+// Two flavors:
+//   • `kind: 'internal'` — a vanilla TS sandbox that lives at
+//     /experiments/<name>. Owns a `mount(root)` that builds the demo and
+//     returns a `teardown()` callback. Lazy-loaded via dynamic import.
+//   • `kind: 'external'` — a card that links out to a separate top-level
+//     SPA route (e.g. /moonshot). External entries don't define a mount;
+//     they're discovery shortcuts surfaced under the experiments index.
 //
-// The router calls mount on route entry and teardown on route exit. Adding
-// an experiment is two steps:
+// Adding an internal experiment:
 //   1. Write the experiment file under site/experiments/
-//   2. Append it to EXPERIMENTS in this file.
+//   2. Append a `kind: 'internal'` entry to EXPERIMENTS.
+//
+// Adding an external link:
+//   1. Append a `kind: 'external'` entry with `href`.
+
+// Flattens intersected/optional/union member shapes for cleaner hover docs.
+type Prettify<T> = { [K in keyof T]: T[K] } & {};
 
 export type ExperimentMount = (root: HTMLElement) => () => void;
 
-export type Experiment = {
+type ExperimentBase = {
   // URL slug, also displayed in the index. Must match
   // `/^[a-z0-9-]+$/` to play nicely with the router.
   name: string;
-  // Display title shown in the index card and on the experiment page.
+  // Display title shown in the index card.
   title: string;
   // One-line description.
   blurb: string;
   // What's being demonstrated, displayed below the canvas.
   topics: ReadonlyArray<string>;
-  // Lazy-loaded mount fn; the registry uses dynamic import so each
-  // experiment only ships its code when visited. The router awaits this
-  // before calling the returned mount.
-  load: () => Promise<{ mount: ExperimentMount }>;
 };
+
+export type InternalExperiment = Prettify<
+  ExperimentBase & {
+    kind: 'internal';
+    // Lazy-loaded mount fn; the registry uses dynamic import so each
+    // experiment only ships its code when visited. The router awaits this
+    // before calling the returned mount.
+    load: () => Promise<{ mount: ExperimentMount }>;
+  }
+>;
+
+export type ExternalExperiment = Prettify<
+  ExperimentBase & {
+    kind: 'external';
+    // Where the card navigates. Stays inside the SPA (the router resolves
+    // it via pushState) unless the value is an absolute URL.
+    href: string;
+  }
+>;
+
+export type Experiment = InternalExperiment | ExternalExperiment;
 
 export const EXPERIMENTS: ReadonlyArray<Experiment> = [
   {
+    kind: 'internal',
     name: 'button',
     title: 'button — hover / press / click',
     blurb: 'A screean button() with hover + press + click handlers wired through pointerTracker. Particles recolor live as state changes.',
@@ -38,6 +64,7 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     load: () => import('./button'),
   },
   {
+    kind: 'internal',
     name: 'six-logo',
     title: 'six-logo — gltf as particle cloud',
     blurb: 'A 3D model fed to the 2D particle system as projected targets. Triangles are area-sampled into a point cloud; per-frame projection drives spring targets. Click to scatter.',
@@ -45,6 +72,15 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     load: () => import('./sixLogo'),
   },
   {
+    kind: 'internal',
+    name: 'six-logo-ink',
+    title: 'six-logo · ink — black particles on white',
+    blurb: "The gltf particle cloud inverted to dark-on-light. Additive 'bloom' blending can only brighten, so black particles vanish on any surface; this runs source-over (pigment darkens) over a white backdrop, with a near-black charcoal palette and a lifted depth-alpha floor. Same projection, cycle, and scatter as six-logo. Click to scatter.",
+    topics: ['source-over blend', 'dark-on-light', 'portal mode', 'depth-cued alpha'],
+    load: () => import('./sixLogoInk'),
+  },
+  {
+    kind: 'internal',
     name: 'flowfield',
     title: 'flowfield — particles drifting through a curl-like field',
     blurb: 'No model, no projection — particles drift through a bounded 2D vector field. Spring chases a moving target one lookahead-step ahead in the flow. Wraps at canvas edges. Click to scatter.',
@@ -52,6 +88,7 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     load: () => import('./flowfield'),
   },
   {
+    kind: 'internal',
     name: 'flowfield-gpu',
     title: 'flowfield-gpu — webgpu compute pipeline',
     blurb: 'Same flowfield, run on the GPU. Compute shader handles flow + spring + drag + integrate + wrap; render shader draws instanced quads from the same buffer. Default 80K particles, ceiling 500K. Requires WebGPU (Chrome / Edge / Firefox-nightly).',
@@ -59,6 +96,7 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     load: () => import('./flowfieldGpu'),
   },
   {
+    kind: 'internal',
     name: 'controls',
     title: 'controls — every factory, controlled-input',
     blurb: 'The full v1 component library wired with the controlled-input pattern. textField creates a real <input> via the DOM mirror; checkbox / radio / image / button / card / label all live in one form. Stable IDs across rebuilds preserve cursor + element identity.',
@@ -66,6 +104,7 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     load: () => import('./controls'),
   },
   {
+    kind: 'internal',
     name: 'gpu-engine',
     title: 'gpu-engine — createWorld + createRendererAsync',
     blurb: "First end-to-end consumer of the engine's new GPU surface (P7b-II + P20). Both halves auto-select: createRendererAsync walks WebGPU → WebGL2 → Canvas2D; createWorld picks GPU compute when an adapter is available, falls back to CPU otherwise. Status pill shows resolved backends. Cursor pulls particles via point force.",
@@ -73,6 +112,7 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     load: () => import('./gpuEngine'),
   },
   {
+    kind: 'internal',
     name: 'visual-fallaway',
     title: 'visual.fallaway — depth axis: visual vs physical',
     blurb: "Two buttons, two depth flavors. Left runs popTo3D (physical: per-particle tz + z-spring). Right runs visual.fallAway (scale + fade only, no z). Both feel like receding; only one actually moves particles in z. The visual version works on every backend including future visionOS without a z field on the GPU struct.",
@@ -80,6 +120,7 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     load: () => import('./visualFallAway'),
   },
   {
+    kind: 'internal',
     name: 'p24-binding-parity',
     title: 'p24-binding-parity — IBinding bridge proof',
     blurb: "Same scene, two backends, side-by-side. scene.bindAll(world) writes per-leaf targets through world.binding() — direct mutation on CPU, queued sparse writes on GPU. The 'Disturb' button stomps velocities through the same IBinding contract; the spring pulls everything back. Visual identicality means the bridge holds.",
@@ -87,13 +128,36 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     load: () => import('./p24BindingParity'),
   },
   {
+    kind: 'internal',
     name: 'six-showcase',
     title: 'six-showcase — fullscreen the6ixCollective demo',
     blurb: "Fullscreen presentation of the engine. Cycles between the 6ix logo, a sphere, and the the6ixCollective text — logo + sphere share a 2-axis rotation matrix, text faces the camera. Per-transition spring/drag presets vary the arrival feel; text mode flickers between fonts before settling. Every 10s a multi-band Perlin glitch burst kicks the field. Click to scatter. Esc to exit.",
     topics: ['fullscreen', 'WebGPU', 'WorldGPU', 'applyPerlinGlitch', 'cloud cycle'],
     load: () => import('./sixShowcase'),
   },
+  {
+    kind: 'internal',
+    name: 'six-showcase-ink',
+    title: 'six-showcase · ink — black particles on white',
+    blurb: "The fullscreen GPU showcase inverted to dark-on-light: black particles on a white surface with ink-on-light HUD chrome. The WebGPU renderer has no additive/bloom mode (its particle blend is source-over alpha), so dark-on-light just needs a white background + dark palette. Same cloud cycle, glitch bursts, and drag modes as six-showcase.",
+    topics: ['WebGPU', 'dark-on-light', 'source-over blend', 'WorldGPU'],
+    load: () => import('./sixShowcaseInk'),
+  },
+  {
+    kind: 'external',
+    name: 'moonshot',
+    title: 'moonshot — multi-screen react over a persistent world',
+    blurb: "Multi-screen React shell sitting above one persistent canvas. Horizon / Atlas / Signal screens swap behind the route while a single World keeps running underneath; cross-screen choreography is proven in the /moonshot/test route. The shell where component-level dissolves graduate into page-level transitions.",
+    topics: ['React', 'multi-screen', 'persistent canvas', 'route-driven choreography'],
+    href: '/moonshot',
+  },
 ];
 
-export const findExperiment = (name: string): Experiment | undefined =>
-  EXPERIMENTS.find((e) => e.name === name);
+// Resolves a route slug to a mountable experiment. External entries are
+// link-only — they're surfaced via the index but don't have a mount, so we
+// narrow the return to InternalExperiment. A user who manually deep-links
+// to /experiments/<external-name> hits the standard 404-ish branch.
+export const findExperiment = (name: string): InternalExperiment | undefined => {
+  const match = EXPERIMENTS.find((e) => e.name === name);
+  return match?.kind === 'internal' ? match : undefined;
+};

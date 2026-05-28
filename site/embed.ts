@@ -94,6 +94,18 @@ export type StageOpts = {
   particleSize?: number;
   trailAlpha?: number;
   fadeWindow?: number;
+  // Blend mode. Omit (or `true`) for the default additive "bloom" look —
+  // particles SUM their contributions, glowing on a dark surface. Set
+  // `false` for standard source-over alpha blending: pigment composites
+  // *over* and *darkens* the surface beneath. This is the switch that makes
+  // dark particles legible on a light background — additive can only
+  // brighten, so a black particle on white is invisible under bloom.
+  bloom?: boolean;
+  // Opaque-mode trail/clear color as an "R,G,B" string. Ignored in portal
+  // mode (the context is transparent and whatever sits behind shows through).
+  // Defaults to the renderer's dark navy; pass '255,255,255' for a white
+  // surface in opaque mode.
+  background?: string;
   // Run in transparent (portal) mode? Hero = true so backdrop bleeds through.
   // Tiles = false to keep each demo visually contained.
   portal?: boolean;
@@ -155,6 +167,10 @@ export class Stage {
       trailAlpha: opts.trailAlpha ?? 0.14,
       portalMode: opts.portal ?? false,
       fadeWindow: opts.fadeWindow ?? 0.35,
+      // Forwarded undefined → the renderer's own default (bloom on, dark
+      // background). Only set when a caller opts out of the additive look.
+      bloom: opts.bloom,
+      background: opts.background,
     });
     this.renderer.resize(this.w, this.h);
     this.world.setForces(this.buildForces());
