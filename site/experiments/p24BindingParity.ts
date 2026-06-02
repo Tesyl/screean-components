@@ -36,7 +36,7 @@ import {
   type SceneNode,
   type Particle,
   type GpuParticleInput,
-} from 'screean';
+} from '@tesyl/screean';
 import { renderNav, renderFooter } from '../layout';
 
 const W = 480;

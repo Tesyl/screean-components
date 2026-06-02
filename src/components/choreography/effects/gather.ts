@@ -7,7 +7,7 @@
 // tick would create a moving target as particles converge — feedback
 // loop that looks weird.
 
-import { easing as curves, type Easing } from 'screean';
+import { easing as curves, type Easing } from '@tesyl/screean';
 import { defineEffect, type Effect, type EffectState } from '../effect';
 import { centroidOf } from './_geom';
 

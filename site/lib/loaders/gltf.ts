@@ -13,7 +13,7 @@
 // Format reference: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html
 // (binary form §3.4: 12-byte header, then chunks of {len, type, data}).
 
-import type { Rng } from 'screean';
+import type { Rng } from '@tesyl/screean';
 
 // Component types from glTF 2.0 — only the ones we handle for indices.
 const COMPONENT_BYTE = 5120;

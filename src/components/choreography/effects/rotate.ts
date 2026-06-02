@@ -3,7 +3,7 @@
 // applies the rotation matrix at angle = ease(t/duration) * radians to
 // the captured offset.
 
-import { easing as curves, type Easing } from 'screean';
+import { easing as curves, type Easing } from '@tesyl/screean';
 import { defineEffect, type Effect, type EffectState } from '../effect';
 import { centroidOf } from './_geom';
 

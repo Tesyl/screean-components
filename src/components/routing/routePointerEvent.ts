@@ -16,7 +16,7 @@
 // provided it's echoed through to the ComponentEvent for consumers who need
 // to render DOM overlays at the click's pixel location.
 
-import type { Scene, Vec2 } from 'screean';
+import type { Scene, Vec2 } from '@tesyl/screean';
 import { findComponentAncestor } from '../component';
 import type { ComponentEvent } from '../types';
 

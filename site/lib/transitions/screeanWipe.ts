@@ -28,11 +28,11 @@
 
 import { Stage } from '../../embed';
 import { THEMES, type ThemeId } from '../../themes';
-import { node } from 'screean';
-import { roundedRectField } from 'screean';
-import { spawn } from 'screean';
-import { dismiss } from 'screean';
-import { TRANSPARENT } from 'screean';
+import { node } from '@tesyl/screean';
+import { roundedRectField } from '@tesyl/screean';
+import { spawn } from '@tesyl/screean';
+import { dismiss } from '@tesyl/screean';
+import { TRANSPARENT } from '@tesyl/screean';
 
 export type ScreeanWipeOpts = {
   container: HTMLElement;

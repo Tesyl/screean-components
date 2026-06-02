@@ -15,7 +15,7 @@ import {
   World, camera, circle, column, createRenderer, drag, keyboardSensor, neighborRepel,
   node, packRGBA, pointForce, pointerSensor, polygon, rect, row, scene, shimmer, spawn,
   spring, TRANSPARENT, type Color, type SceneNode,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   button, createFocusTracker, createPointerTracker, findComponentAncestor,
   label, routeKeyboardEvent,

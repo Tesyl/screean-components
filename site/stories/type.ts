@@ -11,8 +11,8 @@
 
 import type { ThemeId } from '../themes';
 import { THEMES } from '../themes';
-import { circle, text, node } from 'screean';
-import type { SceneNode } from 'screean';
+import { circle, text, node } from '@tesyl/screean';
+import type { SceneNode } from '@tesyl/screean';
 import { Reel } from '../lib/effects/Reel';
 import { type TileGroup, tileStage } from './types';
 

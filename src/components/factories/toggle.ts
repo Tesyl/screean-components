@@ -10,7 +10,7 @@
 // ARIA: `role=switch` + `aria-checked={on}`. The DOM mirror writes both via
 // the `checked` field on ComponentInternals.
 
-import { node, rect, circleField, type SceneNode } from 'screean';
+import { node, rect, circleField, type SceneNode } from '@tesyl/screean';
 import { component } from '../component';
 import { setPart } from '../choreography/parts';
 import type {

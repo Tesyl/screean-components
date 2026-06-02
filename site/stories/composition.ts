@@ -6,11 +6,11 @@
 // gives the layout layer a meaningful intrinsic size for free.
 
 import type { ThemeId } from '../themes';
-import { node } from 'screean';
-import { unionField, intersectField, subtractField } from 'screean';
-import { circleField } from 'screean';
-import { roundedRectField } from 'screean';
-import type { Field } from 'screean';
+import { node } from '@tesyl/screean';
+import { unionField, intersectField, subtractField } from '@tesyl/screean';
+import { circleField } from '@tesyl/screean';
+import { roundedRectField } from '@tesyl/screean';
+import type { Field } from '@tesyl/screean';
 import { Reel } from '../lib/effects/Reel';
 import { type TileGroup, tileStage } from './types';
 

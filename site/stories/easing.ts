@@ -15,7 +15,7 @@ import {
   easing,
   node,
   packRGBA,
-} from 'screean';
+} from '@tesyl/screean';
 import type { ThemeId } from '../themes';
 import { type TileGroup, tileStage } from './types';
 

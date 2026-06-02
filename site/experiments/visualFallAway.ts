@@ -25,7 +25,7 @@ import {
   World,
   spring,
   drag,
-} from 'screean';
+} from '@tesyl/screean';
 import { renderNav, renderFooter } from '../layout';
 import { button } from '../../src/components/factories/button';
 import { createChoreoRunner } from '../../src/components/choreography/runner';

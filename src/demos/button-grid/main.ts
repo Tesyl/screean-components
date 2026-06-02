@@ -18,7 +18,7 @@ import {
   World, camera, column, createRenderer, drag, easing, neighborRepel,
   packRGBA, pointForce, pointerSensor, row, scene, shimmer, spawn,
   spring, TRANSPARENT, type Color, type SceneNode,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   button, createDomMirror, label, type Component,
   createChoreoRunner, dissolve, groupOfComponent, pipe, setColor,

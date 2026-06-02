@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { nGon, starVerts, makeColor } from './embed';
-import { unpackR, unpackG, unpackB, unpackA } from 'screean';
+import { unpackR, unpackG, unpackB, unpackA } from '@tesyl/screean';
 
 describe('nGon', () => {
   it('produces exactly `sides` vertices', () => {

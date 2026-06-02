@@ -6,9 +6,9 @@
 // the page teardown clears them via the returned `dispose`.
 
 import type { ThemeId } from '../themes';
-import { circle, polygon, rect, node } from 'screean';
-import { dismiss } from 'screean';
-import { radialImpulse } from 'screean';
+import { circle, polygon, rect, node } from '@tesyl/screean';
+import { dismiss } from '@tesyl/screean';
+import { radialImpulse } from '@tesyl/screean';
 import { nGon, starVerts } from '../embed';
 import { type TileGroup, runLoop, tileStage } from './types';
 

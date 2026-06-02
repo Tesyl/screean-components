@@ -31,7 +31,7 @@
 // neither gets a click. Click semantics live in routePointerEvent (fired
 // explicitly on 'click' pointer events).
 
-import type { Scene, SceneNode, Vec2 } from 'screean';
+import type { Scene, SceneNode, Vec2 } from '@tesyl/screean';
 import { findComponentAncestor } from '../component';
 import type { Component, ComponentEvent } from '../types';
 

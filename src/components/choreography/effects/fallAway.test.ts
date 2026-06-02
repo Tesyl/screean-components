@@ -20,7 +20,7 @@ import {
   packRGBA,
   unpackA,
   World,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   installOffscreenCanvasStub,
   uninstallOffscreenCanvasStub,

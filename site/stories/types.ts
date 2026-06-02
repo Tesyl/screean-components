@@ -7,7 +7,7 @@
 
 import { Stage } from '../embed';
 import { THEMES, type FeelName, type ThemeId } from '../themes';
-import type { FeelPreset } from 'screean';
+import type { FeelPreset } from '@tesyl/screean';
 
 export type TileSetup = {
   stage: Stage;

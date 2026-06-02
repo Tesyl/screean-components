@@ -10,7 +10,7 @@
 // the canvas when they leave an edge; we shift `tx` and `ty` together
 // with `x`/`y` so the spring doesn't yank the particle back across-screen.
 
-import type { Particle } from 'screean';
+import type { Particle } from '@tesyl/screean';
 
 // Sample the flow vector at world coords (x, y) at time t into a 2-element
 // output buffer. Allocation-free by design: the inner loop in

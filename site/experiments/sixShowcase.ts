@@ -40,7 +40,7 @@ import {
   type Color,
   type GpuParticleInput,
   type Rng,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   loadGlb,
   sampleSurface,

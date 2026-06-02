@@ -43,7 +43,7 @@ import {
   type BitmapField,
   type Color,
   type Renderer,
-} from 'screean';
+} from '@tesyl/screean';
 
 // ---- Tunables -------------------------------------------------------------
 // Pool peaks during a transition. With one transition at a time at this

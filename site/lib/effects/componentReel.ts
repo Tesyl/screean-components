@@ -25,12 +25,12 @@ import type { FeelName, ThemeId } from '../../themes';
 import { THEMES, type ThemeTokens } from '../../themes';
 import { Stage } from '../../embed';
 import { tileStage } from '../../stories/types';
-import { bitmapFieldFromElement } from 'screean';
-import { radialImpulse } from 'screean';
-import { spawn } from 'screean';
-import { node } from 'screean';
-import { TRANSPARENT } from 'screean';
-import type { FeelPreset } from 'screean';
+import { bitmapFieldFromElement } from '@tesyl/screean';
+import { radialImpulse } from '@tesyl/screean';
+import { spawn } from '@tesyl/screean';
+import { node } from '@tesyl/screean';
+import { TRANSPARENT } from '@tesyl/screean';
+import type { FeelPreset } from '@tesyl/screean';
 
 // Defaults match the button tile's tuned values. Each component can
 // override per-call if it wants a different cadence (e.g. a slower

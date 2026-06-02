@@ -7,7 +7,7 @@
 // implicit in the falloff curve. For tighter scoping, narrow the group
 // (e.g. groupOfPart) before invoking.
 
-import { radialImpulse } from 'screean';
+import { radialImpulse } from '@tesyl/screean';
 import type { Effect } from '../effect';
 import { centroidOf } from './_geom';
 

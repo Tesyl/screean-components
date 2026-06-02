@@ -41,7 +41,7 @@ import {
   type Particle,
   type GpuParticleInput,
   type Rng,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   loadGlb,
   sampleSurface,

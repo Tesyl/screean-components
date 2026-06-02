@@ -5,7 +5,7 @@
 //
 // Note: the radial-impulse function that used to live here as
 // `applyJellyImpulse` is now `radialImpulse` in the `screean` engine.
-// Callers import it directly from 'screean'. Same math, better home — see
+// Callers import it directly from '@tesyl/screean'. Same math, better home — see
 // `screean/src/choreography/radialImpulse.ts`.
 
 // Parse an arbitrary CSS color string into [r, g, b, a] (0-255) by bouncing

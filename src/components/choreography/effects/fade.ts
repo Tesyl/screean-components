@@ -4,8 +4,8 @@
 // Use cases: post-dissolve cleanup, "ghost mode" where a component goes
 // translucent under the mirror, smooth particle removal.
 
-import type { Color, Easing } from 'screean';
-import { easing as curves, unpackA } from 'screean';
+import type { Color, Easing } from '@tesyl/screean';
+import { easing as curves, unpackA } from '@tesyl/screean';
 import { defineEffect, type Effect, type EffectState } from '../effect';
 import { setAlpha } from './_color';
 

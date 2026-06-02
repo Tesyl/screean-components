@@ -14,7 +14,7 @@
 // suppress; consumers who need that should also pass ariaLabel for
 // debugging affordance.
 
-import { node, bitmapField, type BitmapSource, type SceneNode } from 'screean';
+import { node, bitmapField, type BitmapSource, type SceneNode } from '@tesyl/screean';
 import { component } from '../component';
 import { setPart } from '../choreography/parts';
 import type { BaseComponentOpts, Component, SizedOpts } from '../types';

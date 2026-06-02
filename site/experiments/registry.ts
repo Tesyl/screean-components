@@ -81,6 +81,22 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
   },
   {
     kind: 'internal',
+    name: 'six-logo-chalk',
+    title: 'six-logo · chalk — white particles on black',
+    blurb: "The gltf particle cloud as light-on-dark: crisp white particles over a black surface. Runs source-over (white pigment composites as opaque chalk marks, no glow halo) with a near-white palette and a low depth-alpha floor so far particles fade into the black. Same projection, cycle, and scatter as six-logo. Click to scatter.",
+    topics: ['source-over blend', 'light-on-dark', 'portal mode', 'depth-cued alpha'],
+    load: () => import('./sixLogoChalk'),
+  },
+  {
+    kind: 'internal',
+    name: 'qr-particles',
+    title: 'qr-particles — a scannable QR code from particles',
+    blurb: "A QR code rendered as a particle field. The matrix (qrcode-generator) maps each dark module to a screen cell; particles distribute round-robin across the dark cells and spring into place, re-forming after a scatter. Dark-on-light with a real quiet zone and shimmer off by default so a phone can actually decode it. Edit the payload to re-encode live.",
+    topics: ['QR', 'spring targets', 'source-over blend', 'radialImpulse'],
+    load: () => import('./qrParticles'),
+  },
+  {
+    kind: 'internal',
     name: 'flowfield',
     title: 'flowfield — particles drifting through a curl-like field',
     blurb: 'No model, no projection — particles drift through a bounded 2D vector field. Spring chases a moving target one lookahead-step ahead in the flow. Wraps at canvas edges. Click to scatter.',
@@ -142,6 +158,14 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     blurb: "The fullscreen GPU showcase inverted to dark-on-light: black particles on a white surface with ink-on-light HUD chrome. The WebGPU renderer has no additive/bloom mode (its particle blend is source-over alpha), so dark-on-light just needs a white background + dark palette. Same cloud cycle, glitch bursts, and drag modes as six-showcase.",
     topics: ['WebGPU', 'dark-on-light', 'source-over blend', 'WorldGPU'],
     load: () => import('./sixShowcaseInk'),
+  },
+  {
+    kind: 'internal',
+    name: 'six-showcase-chalk',
+    title: 'six-showcase · chalk — white particles on black',
+    blurb: "The color-flipped twin of six-showcase-ink: near-white 'chalk' particles on a black surface with light-on-dark HUD chrome. The WebGPU renderer's particle blend is source-over alpha (no additive/bloom), so white-on-black just needs a black background + light palette. Same cloud cycle, glitch bursts, and drag modes as six-showcase.",
+    topics: ['WebGPU', 'light-on-dark', 'source-over blend', 'WorldGPU'],
+    load: () => import('./sixShowcaseChalk'),
   },
   {
     kind: 'external',

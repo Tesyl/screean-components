@@ -29,11 +29,11 @@ import type { Theme, ThemeId } from '../themes';
 import { THEMES } from '../themes';
 import { renderNav, renderFooter, type NavSection } from '../layout';
 import { Stage, windowPointer, nGon, starVerts } from '../embed';
-import { circle, rect, polygon, text, node } from 'screean';
-import type { SceneNode } from 'screean';
-import type { FeelPreset } from 'screean';
-import { dismiss } from 'screean';
-import { radialImpulse } from 'screean';
+import { circle, rect, polygon, text, node } from '@tesyl/screean';
+import type { SceneNode } from '@tesyl/screean';
+import type { FeelPreset } from '@tesyl/screean';
+import { dismiss } from '@tesyl/screean';
+import { radialImpulse } from '@tesyl/screean';
 
 // Hero scene cycle. Five distinct shapes; the hero word renders in the
 // theme's font. Fallbacks keep things sane when text rasterization isn't

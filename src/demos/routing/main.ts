@@ -21,7 +21,7 @@ import {
   packRGBA, pointForce, pointerSensor, radialImpulse, row, scene,
   shimmer, spawn, spring, TRANSPARENT, unpackR, unpackG, unpackB,
   type Color, type SceneNode,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   button, createDomMirror, label, type Component,
   createChoreoRunner, popTo3D, pipe, groupOfSubtree,

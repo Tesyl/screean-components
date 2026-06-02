@@ -17,7 +17,7 @@
 //   3. A short marketing label so the layout chrome can show the theme's
 //      name + tag without re-deriving from elsewhere.
 
-import { feels, type FeelPreset } from 'screean';
+import { feels, type FeelPreset } from '@tesyl/screean';
 
 export type FeelName = keyof typeof feels;
 

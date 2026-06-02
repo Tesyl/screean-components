@@ -21,7 +21,7 @@
 //     takes the current value + an `onChange`-style handler, renders that
 //     value, and trusts the caller to re-build on change.
 
-import type { SceneNode, Vec2 } from 'screean';
+import type { SceneNode, Vec2 } from '@tesyl/screean';
 
 // Closed role set — open enough for v1 components, closed enough that typos
 // fail compilation. Expand deliberately when a new factory lands.

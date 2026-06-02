@@ -17,7 +17,7 @@ import {
   TRANSPARENT,
   World,
   type Particle,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   installOffscreenCanvasStub,
   uninstallOffscreenCanvasStub,

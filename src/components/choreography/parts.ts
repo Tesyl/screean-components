@@ -8,7 +8,7 @@
 //
 // Lookup is O(1); subtree search is depth-first and bails on first hit.
 
-import type { SceneNode } from 'screean';
+import type { SceneNode } from '@tesyl/screean';
 
 const partNames: WeakMap<SceneNode, string> = new WeakMap();
 

@@ -2,7 +2,7 @@
 // isolation. Live alongside effects rather than in a global utilities module
 // so the dependency graph stays scoped (effects → _geom only).
 
-import type { Particle } from 'screean';
+import type { Particle } from '@tesyl/screean';
 
 // Mean (cx, cy) over the live particles in the index set. Skips dead
 // particles. Returns (0, 0) for empty / all-dead groups — callers that need

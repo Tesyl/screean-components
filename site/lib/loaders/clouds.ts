@@ -18,7 +18,7 @@
 //      * heart  → parametric outline + interior fill via barycentric
 //                 sampling of fan triangles
 
-import type { Rng } from 'screean';
+import type { Rng } from '@tesyl/screean';
 
 // ─── Sphere ────────────────────────────────────────────────────────────
 // Fibonacci sphere — places N points on a unit sphere at the golden-
@@ -169,6 +169,12 @@ export const samplePeace = (opts: {
   // Stroke width as a fraction of `targetRadius`. 0.07 reads as a
   // slim line drawing; 0.18 reads as a chunky stencil. Default 0.07.
   strokeThickness?: number;
+  // Z-extrusion thickness as a fraction of `targetRadius` — the symbol is a
+  // flat 2D stencil swept along Z to give it volume. Points are spread
+  // uniformly across ±depth/2, so the cloud reads as a solid extruded
+  // medallion (not a paper wafer) when it rotates on the shared matrix.
+  // 0.05 ≈ the original near-flat look; ~0.4 matches the heart's body.
+  depth?: number;
 }): Float32Array => {
   const { n, rng, targetRadius } = opts;
   const out = new Float32Array(n * 3);
@@ -176,6 +182,7 @@ export const samplePeace = (opts: {
 
   const R = 1.0; // unit-disc sampling space; scaled to targetRadius at write time.
   const strokeThickness = opts.strokeThickness ?? 0.07;
+  const depth = opts.depth ?? 0.05;
   const halfStroke = strokeThickness * 0.5;
   const halfStrokeSq = halfStroke * halfStroke;
   const ringInner = R - strokeThickness;
@@ -240,9 +247,9 @@ export const samplePeace = (opts: {
     if (!inSign(x, y)) continue;
     out[s * 3] = x * scale;
     out[s * 3 + 1] = y * scale;
-    // Light z jitter so the cloud has volume when rotated by the
-    // shared logo/peace/heart matrix.
-    out[s * 3 + 2] = (rng() - 0.5) * 0.05 * targetRadius;
+    // Z-extrusion: sweep the flat stencil across ±depth/2 so the cloud has
+    // real volume when rotated by the shared logo/peace/heart matrix.
+    out[s * 3 + 2] = (rng() - 0.5) * depth * targetRadius;
     s++;
   }
   return out;

@@ -4,7 +4,7 @@
 // particle stays put; at t=duration it sits at startPos remapped by
 // factor relative to the pivot.
 
-import { easing as curves, type Easing } from 'screean';
+import { easing as curves, type Easing } from '@tesyl/screean';
 import { defineEffect, type Effect, type EffectState } from '../effect';
 import { centroidOf } from './_geom';
 

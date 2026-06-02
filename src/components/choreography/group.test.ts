@@ -17,7 +17,7 @@ import {
   World,
   type Particle,
   type Scene,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   installOffscreenCanvasStub,
   uninstallOffscreenCanvasStub,

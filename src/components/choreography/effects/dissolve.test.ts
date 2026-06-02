@@ -16,7 +16,7 @@ import {
   TRANSPARENT,
   World,
   easing,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   installOffscreenCanvasStub,
   uninstallOffscreenCanvasStub,

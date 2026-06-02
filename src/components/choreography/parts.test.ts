@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { __resetNodeIds, node, rect } from 'screean';
+import { __resetNodeIds, node, rect } from '@tesyl/screean';
 import { findPart, getPart, setPart } from './parts';
 
 beforeEach(() => {

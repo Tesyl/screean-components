@@ -14,7 +14,7 @@ import {
   circleField,
   roundedRectField,
   type SceneNode,
-} from 'screean';
+} from '@tesyl/screean';
 import { component, setComponentInternals } from '../component';
 import { setPart } from '../choreography/parts';
 import type {

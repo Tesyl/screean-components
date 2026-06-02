@@ -18,7 +18,7 @@ import { collapsePipelineToEffect } from './_recipe';
 import { pipe, at } from '../pipeline';
 import { fade } from './fade';
 import { scale } from './scale';
-import type { Easing } from 'screean';
+import type { Easing } from '@tesyl/screean';
 import type { Effect } from '../effect';
 
 export type FallAwayOpts = {

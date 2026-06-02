@@ -36,7 +36,7 @@ import {
   mulberry32,
   textField,
   type Rng,
-} from 'screean';
+} from '@tesyl/screean';
 import { loadGlb, sampleSurface, centerAndScale, type LoadedMesh } from '../lib/loaders/gltf';
 import { attachFullscreenButton } from '../lib/ui/fullscreen';
 import { stepFlowfield } from '../lib/physics/flowfield';

@@ -15,7 +15,7 @@ import {
   spawn,
   TRANSPARENT,
   World,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   installOffscreenCanvasStub,
   uninstallOffscreenCanvasStub,
@@ -29,7 +29,7 @@ import type { Effect } from './effect';
 import { loop, narrow, parallel, stretch, when } from './combinators';
 import { setColor } from './effects/setColor';
 import { kick } from './effects/kick';
-import { packRGBA } from 'screean';
+import { packRGBA } from '@tesyl/screean';
 
 beforeAll(installOffscreenCanvasStub);
 afterAll(uninstallOffscreenCanvasStub);

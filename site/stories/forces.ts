@@ -5,7 +5,7 @@
 // spring snaps, soft spring oscillates, shimmer breathes, repel spaces.
 
 import type { ThemeId } from '../themes';
-import { circle, node } from 'screean';
+import { circle, node } from '@tesyl/screean';
 import { type TileGroup, tileStage } from './types';
 
 export const forcesGroup = (themeId: ThemeId): TileGroup => ({

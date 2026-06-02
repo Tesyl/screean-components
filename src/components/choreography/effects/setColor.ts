@@ -4,7 +4,7 @@
 //   setColor({ to: yellow })       // uniform
 //   setColor({ to: pickColor })    // per-particle (function called for each)
 
-import type { Color } from 'screean';
+import type { Color } from '@tesyl/screean';
 import type { Effect } from '../effect';
 
 export type SetColorOpts = {

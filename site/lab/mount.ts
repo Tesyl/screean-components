@@ -26,7 +26,7 @@ import {
   type Color,
   type SceneNode,
   type Easing,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   createDomMirror,
   type Component,

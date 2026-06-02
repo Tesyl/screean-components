@@ -25,7 +25,7 @@
 // `since` timestamps which are incompatible with the cleaner cycle-elapsed
 // model here. Untouched.
 
-import { easing as curves, type Easing } from 'screean';
+import { easing as curves, type Easing } from '@tesyl/screean';
 import type { Effect } from '../effect';
 import { pipe } from '../pipeline';
 import { collapsePipelineToEffect } from './_recipe';

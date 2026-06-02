@@ -11,7 +11,7 @@
 // title's size unless consumer CSS overrides. This is a conscious v1 limit;
 // resolves naturally if/when ComponentInternals grows multi-font support.
 
-import { node, rect, stack, text, type SceneNode } from 'screean';
+import { node, rect, stack, text, type SceneNode } from '@tesyl/screean';
 import { component } from '../component';
 import { setPart } from '../choreography/parts';
 import type { BaseComponentOpts, Component, SizedOpts } from '../types';

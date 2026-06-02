@@ -11,8 +11,8 @@
 // Velocity is zeroed each frame so the integrator's drag/spring can't
 // fight the lerp.
 
-import type { Easing, Particle } from 'screean';
-import { easing as curves } from 'screean';
+import type { Easing, Particle } from '@tesyl/screean';
+import { easing as curves } from '@tesyl/screean';
 import type { Effect } from '../effect';
 import type { CapturedStarts } from './captureStarts';
 

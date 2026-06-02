@@ -7,7 +7,7 @@
 // hit-test walks z-descending and then up the parent chain, a click anywhere
 // on the text OR the rect routes to this button — exactly what you want.
 
-import { node, rect, stack, text, type SceneNode } from 'screean';
+import { node, rect, stack, text, type SceneNode } from '@tesyl/screean';
 import { component } from '../component';
 import { setPart } from '../choreography/parts';
 import type {

@@ -9,7 +9,7 @@
 // Factory helpers (button, label) build a subtree via screean's `stack(...)`
 // / `node(...)` and pass the root to component() to tag it.
 
-import type { SceneNode } from 'screean';
+import type { SceneNode } from '@tesyl/screean';
 import {
   isComponent,
   type Component,

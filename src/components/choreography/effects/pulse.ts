@@ -2,8 +2,8 @@
 // Snapshot original color per-particle at first tick (Uint32Array). At end
 // or on cancel, restore each particle's original color via onEnd.
 
-import type { Color, Easing } from 'screean';
-import { easing as curves } from 'screean';
+import type { Color, Easing } from '@tesyl/screean';
+import { easing as curves } from '@tesyl/screean';
 import { defineEffect, type Effect, type EffectState } from '../effect';
 import { lerpColor } from './_color';
 

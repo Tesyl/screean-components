@@ -18,7 +18,7 @@ import {
   unpackA,
   unpackR,
   World,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   installOffscreenCanvasStub,
   uninstallOffscreenCanvasStub,

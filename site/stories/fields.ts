@@ -4,7 +4,7 @@
 // + a small particle count so the grid stays cheap.
 
 import { THEMES, type ThemeId } from '../themes';
-import { circle, rect, polygon, text, node } from 'screean';
+import { circle, rect, polygon, text, node } from '@tesyl/screean';
 import { nGon, starVerts } from '../embed';
 import { type TileGroup, tileStage } from './types';
 

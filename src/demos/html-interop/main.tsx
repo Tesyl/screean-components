@@ -43,7 +43,7 @@ import {
   packRGBA,
   type Color,
   type BitmapField,
-} from 'screean';
+} from '@tesyl/screean';
 
 import { App } from './App';
 import { parseCssColorToRgba } from './physics';

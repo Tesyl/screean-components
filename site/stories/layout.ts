@@ -4,8 +4,8 @@
 // container handle main-axis spacing + cross-axis alignment.
 
 import type { ThemeId } from '../themes';
-import { circle, rect, polygon, row, column, stack, node } from 'screean';
-import type { SceneNode } from 'screean';
+import { circle, rect, polygon, row, column, stack, node } from '@tesyl/screean';
+import type { SceneNode } from '@tesyl/screean';
 import { starVerts } from '../embed';
 import { Reel } from '../lib/effects/Reel';
 import { type TileGroup, tileStage } from './types';

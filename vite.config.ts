@@ -64,7 +64,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ['screean'],
+    exclude: ['@tesyl/screean'],
   },
   build: {
     target: 'esnext',

@@ -8,7 +8,7 @@
 // advances all live handles and prunes done ones. dispose() cancels every
 // live handle (running their onEnds) and clears the trigger registry.
 
-import type { Particle, Scene } from 'screean';
+import type { Particle, Scene } from '@tesyl/screean';
 import type { Component } from '../types';
 import type { ChoreoWorld, Effect, EffectCtx } from './effect';
 import type { PointerTracker } from '../routing/pointerTracker';

@@ -2,7 +2,7 @@
 // decayMs. The first tick paints the color; subsequent ticks lerp back.
 // onEnd restores originals for cancel safety.
 
-import type { Color } from 'screean';
+import type { Color } from '@tesyl/screean';
 import { defineEffect, type Effect, type EffectState } from '../effect';
 import { lerpColor } from './_color';
 

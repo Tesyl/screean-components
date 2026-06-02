@@ -14,7 +14,7 @@
 // ARIA: role=textbox + aria-label. The DOM mirror sets `<input>.value` from
 // the captured textValue.
 
-import { node, rect, stack, text, type SceneNode } from 'screean';
+import { node, rect, stack, text, type SceneNode } from '@tesyl/screean';
 import { component } from '../component';
 import { setPart } from '../choreography/parts';
 import type {

@@ -15,7 +15,7 @@
 // composition, etc). Cost is one engine-side index lookup per tick;
 // engine caches the lookup so it's O(leaves) typically.
 
-import type { Particle, Scene, SceneNode } from 'screean';
+import type { Particle, Scene, SceneNode } from '@tesyl/screean';
 import type { Component } from '../types';
 import { findPart } from './parts';
 

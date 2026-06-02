@@ -3,7 +3,7 @@
 // — lerping packed integers directly — is wrong (channels overflow into
 // each other).
 
-import { packRGBA, unpackA, unpackB, unpackG, unpackR, type Color } from 'screean';
+import { packRGBA, unpackA, unpackB, unpackG, unpackR, type Color } from '@tesyl/screean';
 
 export const lerpColor = (from: Color, to: Color, t: number): Color => {
   const fr = unpackR(from);

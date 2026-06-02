@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { __resetNodeIds, node, rect, scene, stack } from 'screean';
+import { __resetNodeIds, node, rect, scene, stack } from '@tesyl/screean';
 import {
   installOffscreenCanvasStub,
   uninstallOffscreenCanvasStub,

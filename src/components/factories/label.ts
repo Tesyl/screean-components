@@ -5,7 +5,7 @@
 // Non-interactive: no handler bag. If a consumer wants clickable text they
 // can use `button({ label: '...' })` or compose their own with `component()`.
 
-import { node, text, type SceneNode } from 'screean';
+import { node, text, type SceneNode } from '@tesyl/screean';
 import { component } from '../component';
 import { setPart } from '../choreography/parts';
 import type { BaseComponentOpts, Component } from '../types';

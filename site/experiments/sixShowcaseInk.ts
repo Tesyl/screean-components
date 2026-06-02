@@ -1,14 +1,14 @@
 /// <reference types="vite/client" />
-// six-showcase · ink — fullscreen GPU showcase, inverted to dark-on-light.
+// six-showcase — fullscreen GPU showcase, themeable via a colorway.
 //
-// The ink twin of sixShowcase.ts: black particles on a white surface, with
-// the HUD chrome recolored from chartreuse-on-dark to ink-on-light. The
-// engine path is identical — and notably, the WebGPU renderer has NO
-// additive/bloom mode (its particle blend is hardcoded source-over alpha),
-// so dark-on-light "just works" here once the surface is white and the
-// palette is dark. The only renderer change is `background: '255,255,255'`,
-// which sets the per-frame clear + trail color to white. See
-// docs/rendering-blend-modes.md.
+// Two colorways (see COLORWAYS below), selected by `SixInkOptions.theme`:
+//   • 'ink' (default) — dark particles on a white surface, ink-on-light HUD.
+//   • 'chalk'         — white particles on a black surface, light-on-dark HUD.
+// The engine path is identical for both — the WebGPU renderer's particle blend
+// is source-over alpha (no additive/bloom), so a dark palette on white and a
+// light palette on black are mirror images that "just work". The colorway sets
+// the particle palette, the renderer's clear/trail `background`, the host
+// backdrop, and every HUD chrome color. See docs/rendering-blend-modes.md.
 //
 // ─── original behaviour (unchanged) ─────────────────────────────────────
 // A self-driving cycle of three (sometimes four) anchor clouds:
@@ -32,7 +32,9 @@
 // experiment shows a graceful fallback message on devices without an
 // adapter.
 
-import sixLogoGlb from '../assets/6ixLogo.glb?url';
+// The default 6ix logo glTF is loaded LAZILY (dynamic import in init) so the
+// 882 KB asset never lands in the eagerly-evaluated bundle. Consumers that
+// pass `options.logoUrl` skip it entirely. See init().
 
 import {
   createWorld,
@@ -50,7 +52,7 @@ import {
   type Color,
   type GpuParticleInput,
   type Rng,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   loadGlb,
   sampleSurface,
@@ -67,27 +69,28 @@ const SHOWCASE = {
   modelDepth: 600,
   perspective: 700,
   // Smaller particles — the field is denser at 3x scale so each dot
-  // can be smaller without losing presence.
-  particleSize: 1.0,
-  trailAlpha: 0.16,
+  // can be smaller without losing presence. Defaults below are the
+  // hand-tuned "ink hero" preset (captured from a live tuning session).
+  particleSize: 1.2,
+  trailAlpha: 0.58,
   particleCount: 500_000,
   scatterKick: 1900,
   scatterSoftness: 0.06,
   dwellLogoMs: 5800,
   dwellPeaceMs: 5800,
-  dwellHeartMs: 5400,
+  dwellHeartMs: 5800,
   transitionMs: 1000,
   // One-axis spin — rotXspeed stays at 0 so everything rotates around
   // the vertical (Y) axis only, like a turntable. The X-rotation knob
   // in the M panel is still wired up if you want to dial it back in.
   rotXspeed: 0,
   rotYspeed: 0.42,
-  glitchIntervalMs: 10_000,
-  clickPerlinChance: 0.08,
+  glitchIntervalMs: 18_000,
+  clickPerlinChance: 0.72,
   // Post-rotation, pre-perspective scale baked into setTransform3D.
   // Stacks on modelRadius — total visual scale = modelRadius / 260 *
   // cloudScale relative to launch.
-  cloudScale: 2.0,
+  cloudScale: 1.5,
 } as const;
 
 
@@ -106,7 +109,7 @@ const FEELS: ReadonlyArray<FeelPreset> = [
 // dampening dialed back a smidge from 0.40 → 0.32. Mutable — the
 // M-toggle controls panel writes through this so live tweaks affect
 // the next dwell-back-to-rest lerp.
-const REST_FEEL_DEFAULTS = { springK: 60, springC: 5.5, drag: 0.32 } as const;
+const REST_FEEL_DEFAULTS = { springK: 105, springC: 5.4, drag: 0.11 } as const;
 const restFeel: FeelPreset = {
   name: 'rest',
   springK: REST_FEEL_DEFAULTS.springK,
@@ -114,15 +117,69 @@ const restFeel: FeelPreset = {
   drag: REST_FEEL_DEFAULTS.drag,
 };
 
-// Ink palette: grayscale jitter from black to dark charcoal. The showcase
-// has no depth-cued alpha (every particle holds alpha 255), so a little
-// per-particle lightness variation gives the silhouette internal texture
-// instead of a flat black mass. sat 0 → the hue is irrelevant; lit drives
-// darkness only. Renders dark-on-white via the renderer's source-over blend.
-const INK_LIT_MIN = 0.0;   // pure black
-const INK_LIT_MAX = 0.12;  // dark charcoal
-const sampleColor = (rng: Rng): Color => {
-  const lit = INK_LIT_MIN + rng() * (INK_LIT_MAX - INK_LIT_MIN);
+// Colorway — every theme-varying color in one type-coupled table. The hero
+// renders one of these; `SixInkOptions.theme` selects it at mount, defaulting
+// to 'ink' for back-compat. The engine path is identical across themes — the
+// WebGPU renderer's particle blend is source-over alpha (no additive/bloom),
+// so a dark palette on a white surface (ink) and a light palette on a black
+// surface (chalk) are mirror images that "just work". See
+// docs/rendering-blend-modes.md.
+export type SixColorway = 'ink' | 'chalk';
+type ColorwaySpec = {
+  // Particle palette: grayscale jitter across [litMin, litMax]. The showcase
+  // has no depth-cued alpha (every particle holds alpha 255), so this spread
+  // gives the silhouette internal texture instead of a flat mass. sat 0 → hue
+  // is irrelevant; lit alone drives the value.
+  litMin: number;
+  litMax: number;
+  rendererBg: string;     // renderer clear + trail color, "r,g,b"
+  hostGradient: string;   // CSS backdrop behind the canvas
+  accent: string;         // primary HUD text / chrome
+  accentDim: string;      // secondary HUD text
+  iconFill: string;       // corner-stack mini-cloud dot color
+  panelSurface: string;   // controls-panel translucent fill
+  buttonSurface: string;  // fullscreen-button translucent fill
+  buttonHover: string;    // fullscreen-button hover fill
+  sliderAccent: string;   // range-input accent-color
+  buttonContrast: string; // text color when a button fills with `accent`
+  label: string;          // brand-line suffix
+};
+const COLORWAYS: Record<SixColorway, ColorwaySpec> = {
+  // Dark particles on white — the original showcase inversion.
+  ink: {
+    litMin: 0.0,    // pure black
+    litMax: 0.12,   // dark charcoal
+    rendererBg: '255,255,255',
+    hostGradient: 'radial-gradient(ellipse at center, #ffffff 0%, #f3f3f5 72%, #e9e9ee 100%)',
+    accent: 'rgba(11, 11, 11, 0.86)',
+    accentDim: 'rgba(11, 11, 11, 0.42)',
+    iconFill: 'rgba(11, 11, 11, 0.95)',
+    panelSurface: 'rgba(250, 250, 252, 0.82)',
+    buttonSurface: 'rgba(250, 250, 252, 0.62)',
+    buttonHover: 'rgba(11, 11, 11, 0.10)',
+    sliderAccent: '#0b0b0b',
+    buttonContrast: '#fff',
+    label: 'ink',
+  },
+  // Light particles on black — the color-flipped twin.
+  chalk: {
+    litMin: 0.88,   // soft chalk gray
+    litMax: 1.0,    // pure white
+    rendererBg: '0,0,0',
+    hostGradient: 'radial-gradient(ellipse at center, #121215 0%, #08080a 72%, #000000 100%)',
+    accent: 'rgba(244, 244, 244, 0.88)',
+    accentDim: 'rgba(244, 244, 244, 0.44)',
+    iconFill: 'rgba(244, 244, 244, 0.95)',
+    panelSurface: 'rgba(10, 10, 12, 0.82)',
+    buttonSurface: 'rgba(10, 10, 12, 0.62)',
+    buttonHover: 'rgba(244, 244, 244, 0.12)',
+    sliderAccent: '#f4f4f4',
+    buttonContrast: '#000',
+    label: 'chalk',
+  },
+};
+const sampleColor = (rng: Rng, cw: ColorwaySpec): Color => {
+  const lit = cw.litMin + rng() * (cw.litMax - cw.litMin);
   const [r, g, b] = hslToRgb(0, 0, lit);
   return packRGBA((r * 255) | 0, (g * 255) | 0, (b * 255) | 0, 255);
 };
@@ -144,8 +201,145 @@ const composeRotXY = (rotX: number, rotY: number): Float32Array => {
     0,          0,          0,          1,
   ]);
 };
-export const mount = (root: HTMLElement): (() => void) => {
+// ─── Public API surface ──────────────────────────────────────────────────────
+// The showcase is consumed two ways:
+//   1. as a standalone experiment — `mount(root)` with no options (router path);
+//   2. embedded — `mount(root, { chrome: false, controls: {...} })`, where the
+//      host app renders its OWN menu and drives the animation through the
+//      returned handle's `setControl` / `getControls`.
+
+// Stable identifiers for every tunable. Type-coupled: adding a control here
+// (and to `controlSpecs` below) is the only place a new knob is declared.
+export type SixInkControlKey =
+  | 'springK'
+  | 'springC'
+  | 'drag'
+  | 'rotXspeed'
+  | 'rotYspeed'
+  | 'cloudScale'
+  | 'dwellSeconds'
+  | 'glitchIntervalSeconds'
+  | 'glitchEnabled'
+  | 'glitchAmpScale'
+  | 'glitchFreqScale'
+  | 'glitchMaxOctaves'
+  | 'glitchDurationScale'
+  | 'scatterKick'
+  | 'clickPerlinChance'
+  | 'particleSize'
+  | 'trailAlpha'
+  | 'perlinScale'
+  | 'perlinSpeed'
+  | 'perlinStrength'
+  | 'perlinOctaves';
+
+// Serializable descriptor — everything a host menu needs to render a control
+// (label, range, baked default, value formatter). No functions that touch
+// internals; mutate via `handle.setControl`.
+export type SixInkControlMeta = {
+  key: SixInkControlKey;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  default: number;
+  format: (v: number) => string;
+};
+
+// Per-overlay visibility. `mount` defaults every flag to OFF (bare canvas);
+// pass `chrome: true` for the full dev HUD or an object for a subset.
+export type SixInkChromeFlags = {
+  status?: boolean;
+  cornerStack?: boolean;
+  hint?: boolean;
+  brand?: boolean;
+  fullscreenButton?: boolean;
+  controlsPanel?: boolean;
+};
+
+export type SixInkOptions = {
+  // How the host fills space:
+  //   'viewport'  (default) → position:fixed; inset:0; z-index:9999. The
+  //                standalone experiment takes over the screen.
+  //   'container' → position:absolute; inset:0; 100%×100%, no z-index. Fills
+  //                whatever positioned `root` the caller provides (e.g. an
+  //                embed wrapper that owns its own fixed/z-index). Required
+  //                when layering UI on top — a fixed z-9999 host would paint
+  //                over the host app's content.
+  fill?: 'viewport' | 'container';
+  // Called when WebGPU is unavailable (or the GPU world/renderer fall back).
+  // The host can render its own fallback layer behind the glass. The canvas
+  // is left blank (no overlays) when this fires.
+  onFallback?: (reason: string) => void;
+  // false (default) → no DOM overlays. true → all. Object → per-overlay.
+  chrome?: boolean | SixInkChromeFlags;
+  // T (cycle drag mode) · F (fullscreen) · M (toggle panel) · Esc (exit).
+  // Default true. Pointer drag-to-disturb is always on (it's the interaction).
+  keyboard?: boolean;
+  // History-API target for Esc. null → Esc is a no-op (embed-safe).
+  // Default '/experiments' to preserve standalone behavior.
+  exitTo?: string | null;
+  // Initial control overrides, applied over the baked defaults once the
+  // world is live.
+  controls?: Partial<Record<SixInkControlKey, number>>;
+  // URL of the 6ix logo glTF used for the logo cloud. Defaults to the asset
+  // bundled with this module. Embedders that can't resolve the bundled
+  // `?url` import (e.g. a different bundler) pass their own self-hosted copy.
+  logoUrl?: string;
+  // Colorway: 'ink' (dark particles on white, default) or 'chalk' (white
+  // particles on black). Resolved once at mount — it drives the particle
+  // palette, the renderer's clear/trail color, and all HUD chrome. Not a live
+  // control (the control surface is numeric-only).
+  theme?: SixColorway;
+};
+
+// What `mount` returns. It IS the teardown function (call it, or `.dispose()`)
+// AND carries the live control surface for a host menu.
+export type SixInkHandle = (() => void) & {
+  dispose: () => void;
+  controls: readonly SixInkControlMeta[];
+  getControl: (key: SixInkControlKey) => number;
+  getControls: () => Record<SixInkControlKey, number>;
+  setControl: (key: SixInkControlKey, value: number) => void;
+  disturb: () => void;
+};
+
+const resolveChrome = (
+  c: SixInkOptions['chrome'],
+): Required<SixInkChromeFlags> => {
+  const all = (b: boolean): Required<SixInkChromeFlags> => ({
+    status: b,
+    cornerStack: b,
+    hint: b,
+    brand: b,
+    fullscreenButton: b,
+    controlsPanel: b,
+  });
+  if (c === true) return all(true);
+  if (!c) return all(false);
+  return {
+    status: c.status ?? false,
+    cornerStack: c.cornerStack ?? false,
+    hint: c.hint ?? false,
+    brand: c.brand ?? false,
+    fullscreenButton: c.fullscreenButton ?? false,
+    controlsPanel: c.controlsPanel ?? false,
+  };
+};
+
+export const mount = (
+  root: HTMLElement,
+  options: SixInkOptions = {},
+): SixInkHandle => {
   root.innerHTML = '';
+
+  // Resolved option surface. Default = bare canvas, keyboard on, Esc → router.
+  const chrome = resolveChrome(options.chrome);
+  const keyboardEnabled = options.keyboard ?? true;
+  const exitTo = options.exitTo === undefined ? '/experiments' : options.exitTo;
+  const fillMode = options.fill ?? 'viewport';
+  // Resolve the colorway once — drives palette, renderer clear, and all chrome.
+  const cw = COLORWAYS[options.theme ?? 'ink'];
 
   // Live-tunable state. Seeded from SHOWCASE constants; the M-toggle
   // controls panel mutates these in place, and the tick + scheduler
@@ -185,7 +379,7 @@ export const mount = (root: HTMLElement): (() => void) => {
     dwellHeartMs: SHOWCASE.dwellHeartMs,
     glitchIntervalMs: SHOWCASE.glitchIntervalMs,
     glitchEnabled: true,
-    glitchAmpScale: 1,
+    glitchAmpScale: 1.7,
     glitchFreqScale: 1,
     glitchMaxOctaves: 3,
     glitchDurationScale: 1,
@@ -193,32 +387,36 @@ export const mount = (root: HTMLElement): (() => void) => {
     clickPerlinChance: SHOWCASE.clickPerlinChance,
     particleSize: SHOWCASE.particleSize,
     trailAlpha: SHOWCASE.trailAlpha,
-    ambientPerlinScale: 50,         // 50 px/cycle ≈ medium swirl
-    ambientPerlinSpeed: 0.12,       // slow breathing — full cycle every ~8s
-    ambientPerlinStrength: 35,      // gentle background drift; bursts ride on top
-    ambientPerlinOctaves: 2,
+    ambientPerlinScale: 192,        // px/cycle — wide, loose swirl
+    ambientPerlinSpeed: 1.18,       // brisk evolution
+    ambientPerlinStrength: 40,      // gentle background drift; bursts ride on top
+    ambientPerlinOctaves: 1,
   };
 
-  // ─── DOM (fullscreen, no chrome) ────────────────────────────────────
-  // We don't request the Fullscreen API (it requires a user gesture and
-  // adds friction). Instead we cover the viewport with a fixed-position
-  // host. The router teardown removes it cleanly.
+  // ─── DOM ─────────────────────────────────────────────────────────────
+  // 'viewport' (standalone): cover the visual viewport with a fixed host —
+  // we don't request the Fullscreen API (it needs a user gesture). 'container'
+  // (embed): fill the caller's positioned `root` with an absolute host that
+  // claims no stacking of its own, so the host app's content can layer above.
+  // Router/host teardown removes it cleanly either way.
   const host = document.createElement('div');
   Object.assign(host.style, {
-    position: 'fixed',
+    ...(fillMode === 'viewport'
+      ? { position: 'fixed', zIndex: '9999' }
+      : { position: 'absolute' }),
     inset: '0',
-    background:
-      'radial-gradient(ellipse at center, #ffffff 0%, #f3f3f5 72%, #e9e9ee 100%)',
+    background: cw.hostGradient,
     overflow: 'hidden',
-    zIndex: '9999',
   } satisfies Partial<CSSStyleDeclaration>);
   root.appendChild(host);
 
   const canvas = document.createElement('canvas');
   Object.assign(canvas.style, {
     display: 'block',
-    width: '100vw',
-    height: '100vh',
+    // 100% of the host (which is the viewport or the container) — not vw/vh,
+    // so a contained embed sizes to its box, not the screen.
+    width: '100%',
+    height: '100%',
     cursor: 'crosshair',
   } satisfies Partial<CSSStyleDeclaration>);
   host.appendChild(canvas);
@@ -229,10 +427,10 @@ export const mount = (root: HTMLElement): (() => void) => {
   // visual gain.
   const dpr = Math.min(2, window.devicePixelRatio || 1);
 
-  // Ink accent — near-black ink text/chrome on the white surface. Inverted
-  // from the chartreuse-on-dark of the original showcase.
-  const INK_ACCENT = 'rgba(11, 11, 11, 0.86)';
-  const INK_ACCENT_DIM = 'rgba(11, 11, 11, 0.42)';
+  // HUD accent — text/chrome color for the active colorway. Kept under the
+  // INK_ACCENT names so the many downstream references read unchanged.
+  const INK_ACCENT = cw.accent;
+  const INK_ACCENT_DIM = cw.accentDim;
 
   // Status pill — moved to TOP-right so the bottom-right slot belongs
   // to the clock.
@@ -250,7 +448,7 @@ export const mount = (root: HTMLElement): (() => void) => {
     transition: 'opacity 0.4s ease',
   } satisfies Partial<CSSStyleDeclaration>);
   status.textContent = 'booting…';
-  host.appendChild(status);
+  if (chrome.status) host.appendChild(status);
 
   // Bottom-right corner stack (top → bottom):
   //   1. icons row — peace, heart, logo at correct relative scale
@@ -269,7 +467,7 @@ export const mount = (root: HTMLElement): (() => void) => {
     gap: '12px',
     pointerEvents: 'none',
   } satisfies Partial<CSSStyleDeclaration>);
-  host.appendChild(corner);
+  if (chrome.cornerStack) host.appendChild(corner);
 
   // Icon row — three mini particle clouds (peace, heart, logo). Each
   // is its own canvas drawing a sub-sample of the corresponding big
@@ -385,7 +583,7 @@ export const mount = (root: HTMLElement): (() => void) => {
       ic.ctx.clearRect(0, 0, w, h);
       // Active icon = full ink; inactive = dimmed (opacity is also
       // CSS-controlled so the styles compose).
-      ic.ctx.fillStyle = 'rgba(11, 11, 11, 0.95)';
+      ic.ctx.fillStyle = cw.iconFill;
       const cxC = w * 0.5;
       const cyC = h * 0.5;
       const scale = (Math.min(w, h) * 0.5 * ICON_FILL_RATIO) / ic.fitRadius;
@@ -622,8 +820,10 @@ export const mount = (root: HTMLElement): (() => void) => {
     const ss = String(d.getSeconds()).padStart(2, '0');
     drawClock(`${hh}:${mm}:${ss}`);
   };
-  updateClock();
-  const clockInterval = setInterval(updateClock, 1000);
+  if (chrome.cornerStack) updateClock();
+  const clockInterval = chrome.cornerStack
+    ? setInterval(updateClock, 1000)
+    : 0;
 
   // Hint (bottom-center). Fades on first click.
   const hint = document.createElement('div');
@@ -641,7 +841,7 @@ export const mount = (root: HTMLElement): (() => void) => {
     transition: 'opacity 0.6s ease',
   } satisfies Partial<CSSStyleDeclaration>);
   hint.textContent = 'drag to disturb · t to cycle modes · f fullscreen · m controls · esc to exit';
-  host.appendChild(hint);
+  if (chrome.hint) host.appendChild(hint);
 
   // Brand mark (top-left).
   const brand = document.createElement('div');
@@ -656,8 +856,8 @@ export const mount = (root: HTMLElement): (() => void) => {
     textTransform: 'uppercase',
     pointerEvents: 'none',
   } satisfies Partial<CSSStyleDeclaration>);
-  brand.textContent = 'the6ixCollective · gpu showcase · ink';
-  host.appendChild(brand);
+  brand.textContent = `the6ixCollective · gpu showcase · ${cw.label}`;
+  if (chrome.brand) host.appendChild(brand);
 
   // Fullscreen button (bottom-left). Pairs with the F key — both call
   // the same toggle. Browser Fullscreen API needs a user gesture so we
@@ -670,7 +870,7 @@ export const mount = (root: HTMLElement): (() => void) => {
     bottom: '24px',
     left: '28px',
     padding: '8px 14px',
-    background: 'rgba(250, 250, 252, 0.62)',
+    background: cw.buttonSurface,
     border: `1px solid ${INK_ACCENT_DIM}`,
     borderRadius: '3px',
     color: INK_ACCENT,
@@ -686,14 +886,14 @@ export const mount = (root: HTMLElement): (() => void) => {
   // @ts-expect-error WebkitBackdropFilter is non-standard but Safari needs it.
   fsBtn.style.WebkitBackdropFilter = 'blur(10px) saturate(1.2)';
   fsBtn.addEventListener('mouseenter', () => {
-    fsBtn.style.background = 'rgba(11, 11, 11, 0.10)';
+    fsBtn.style.background = cw.buttonHover;
     fsBtn.style.borderColor = INK_ACCENT;
   });
   fsBtn.addEventListener('mouseleave', () => {
-    fsBtn.style.background = 'rgba(250, 250, 252, 0.62)';
+    fsBtn.style.background = cw.buttonSurface;
     fsBtn.style.borderColor = INK_ACCENT_DIM;
   });
-  host.appendChild(fsBtn);
+  if (chrome.fullscreenButton) host.appendChild(fsBtn);
 
   const isFullscreen = (): boolean => document.fullscreenElement === host;
   const toggleFullscreen = (): void => {
@@ -736,7 +936,7 @@ export const mount = (root: HTMLElement): (() => void) => {
     maxHeight: 'calc(100vh - 120px)',
     overflowY: 'auto',
     padding: '18px 20px 22px',
-    background: 'rgba(250, 250, 252, 0.82)',
+    background: cw.panelSurface,
     border: `1px solid ${INK_ACCENT_DIM}`,
     borderRadius: '4px',
     color: INK_ACCENT,
@@ -754,7 +954,7 @@ export const mount = (root: HTMLElement): (() => void) => {
   } satisfies Partial<CSSStyleDeclaration>);
   // @ts-expect-error WebkitBackdropFilter is non-standard but Safari needs it.
   panel.style.WebkitBackdropFilter = 'blur(14px) saturate(1.2)';
-  host.appendChild(panel);
+  if (chrome.controlsPanel) host.appendChild(panel);
 
   const panelHeader = document.createElement('div');
   panelHeader.textContent = 'CONTROLS';
@@ -793,7 +993,7 @@ export const mount = (root: HTMLElement): (() => void) => {
   } satisfies Partial<CSSStyleDeclaration>);
   disturbBtn.addEventListener('mouseenter', () => {
     disturbBtn.style.background = INK_ACCENT;
-    disturbBtn.style.color = '#fff';
+    disturbBtn.style.color = cw.buttonContrast;
   });
   disturbBtn.addEventListener('mouseleave', () => {
     disturbBtn.style.background = 'transparent';
@@ -827,8 +1027,47 @@ export const mount = (root: HTMLElement): (() => void) => {
   disturbBtn.addEventListener('click', disturbAll);
   panel.appendChild(disturbBtn);
 
-  // Knob factory — one row per tunable. Returns the input element so
-  // callers can drive value updates from outside (e.g. reset).
+  // ─── Control registry ────────────────────────────────────────────────
+  // Single source of truth for the tunables. `makeKnob` below registers
+  // each control here (keyed off its display label) as it builds the panel
+  // row, so the built-in panel and the host-facing handle (setControl /
+  // getControls) drive the exact same apply functions. The registry is
+  // populated even when the panel is hidden — the rows are built into a
+  // detached `panel` element and simply never appended.
+  const LABEL_TO_KEY: Readonly<Record<string, SixInkControlKey>> = {
+    'spring K': 'springK',
+    'spring C': 'springC',
+    drag: 'drag',
+    'rot X speed': 'rotXspeed',
+    'rot Y speed': 'rotYspeed',
+    'cloud scale': 'cloudScale',
+    'dwell (s)': 'dwellSeconds',
+    'glitch every (s)': 'glitchIntervalSeconds',
+    'glitch enabled': 'glitchEnabled',
+    'glitch amp x': 'glitchAmpScale',
+    'glitch freq x': 'glitchFreqScale',
+    'glitch octaves': 'glitchMaxOctaves',
+    'glitch dur x': 'glitchDurationScale',
+    'scatter kick': 'scatterKick',
+    'click splash %': 'clickPerlinChance',
+    'particle size': 'particleSize',
+    'trail alpha': 'trailAlpha',
+    'perlin scale (px/cycle)': 'perlinScale',
+    'perlin speed': 'perlinSpeed',
+    'perlin strength': 'perlinStrength',
+    'perlin octaves': 'perlinOctaves',
+  };
+
+  type ControlEntry = {
+    meta: SixInkControlMeta;
+    apply: (v: number) => void;
+    setUI: (v: number) => void; // sync the panel row (no-op work if hidden)
+  };
+  const controlRegistry = new Map<SixInkControlKey, ControlEntry>();
+  const currentControls = {} as Record<SixInkControlKey, number>;
+
+  // Knob factory — one row per tunable. Also registers the control so the
+  // host handle can drive it. Returns the input element.
   const makeKnob = (label: string, opts: {
     min: number;
     max: number;
@@ -837,6 +1076,7 @@ export const mount = (root: HTMLElement): (() => void) => {
     format?: (v: number) => string;
     apply: (v: number) => void;
   }): HTMLInputElement => {
+    const key = LABEL_TO_KEY[label]!;
     const row = document.createElement('div');
     Object.assign(row.style, {
       marginBottom: '10px',
@@ -867,17 +1107,25 @@ export const mount = (root: HTMLElement): (() => void) => {
     input.value = String(opts.value);
     Object.assign(input.style, {
       width: '100%',
-      accentColor: '#0b0b0b',
+      accentColor: cw.sliderAccent,
       cursor: 'pointer',
     } satisfies Partial<CSSStyleDeclaration>);
     input.addEventListener('input', () => {
       const v = parseFloat(input.value);
+      currentControls[key] = v;
       valueEl.textContent = fmt(v);
       opts.apply(v);
     });
     row.appendChild(head);
     row.appendChild(input);
     panel.appendChild(row);
+
+    controlRegistry.set(key, {
+      meta: { key, label, min: opts.min, max: opts.max, step: opts.step, default: opts.value, format: fmt },
+      apply: opts.apply,
+      setUI: (v) => { input.value = String(v); valueEl.textContent = fmt(v); },
+    });
+    currentControls[key] = opts.value;
     return input;
   };
 
@@ -1039,6 +1287,24 @@ export const mount = (root: HTMLElement): (() => void) => {
     panel.style.transform = panelOpen ? 'translateX(0)' : 'translateX(-340px)';
   };
 
+  // ─── Host-facing control surface ─────────────────────────────────────
+  // Built from the registry the knobs populated above. A host menu reads
+  // `controlsMeta` to render its own UI, then drives the animation through
+  // `setControl`. Values are clamped to each control's declared range.
+  const controlsMeta: readonly SixInkControlMeta[] = [...controlRegistry.values()].map(
+    (e) => e.meta,
+  );
+  const setControl = (key: SixInkControlKey, value: number): void => {
+    const entry = controlRegistry.get(key);
+    if (!entry) return;
+    const v = Math.min(entry.meta.max, Math.max(entry.meta.min, value));
+    currentControls[key] = v;
+    entry.apply(v);   // safe before world/renderer exist (applies guard internally)
+    entry.setUI(v);   // keeps the built-in panel in sync if it's shown
+  };
+  const getControl = (key: SixInkControlKey): number => currentControls[key];
+  const getControls = (): Record<SixInkControlKey, number> => ({ ...currentControls });
+
   // Viewport dims read from the host element — `position: fixed; inset: 0`
   // makes host.clientWidth/Height equal the visual viewport without
   // counting scrollbars or browser-chrome quirks. window.innerWidth
@@ -1046,12 +1312,17 @@ export const mount = (root: HTMLElement): (() => void) => {
   // a vertical scrollbar present on the body), which left the scene
   // anchored off-center. (DPR hoisted up earlier so the corner-stack
   // mini particle canvases can use it at construction.)
-  let W = window.innerWidth;
-  let H = window.innerHeight;
+  // Read the host's own box, not the window — so a 'container' embed sizes to
+  // its wrapper rather than the whole screen. Falls back to the viewport while
+  // the host has no laid-out size yet (pre-attach).
+  const hostSize = (): { w: number; h: number } => ({
+    w: host.clientWidth || window.innerWidth,
+    h: host.clientHeight || window.innerHeight,
+  });
+  let { w: W, h: H } = hostSize();
   let cursorCenteredOnce = false;
   const applySize = (): void => {
-    W = window.innerWidth;
-    H = window.innerHeight;
+    ({ w: W, h: H } = hostSize());
     // renderer.resize expects CSS pixels (it multiplies by DPR internally).
     // It also OVERRIDES canvas.width / canvas.style.width itself, so we
     // skip the manual write — calling renderer.resize is the source of
@@ -1214,7 +1485,7 @@ export const mount = (root: HTMLElement): (() => void) => {
         // single click-kick because it accumulates per frame.
         w.applyRadialImpulse({
           origin: { x, y },
-          kick: state.scatterKick * dpr * dt * 6,
+          kick: state.scatterKick * dpr * dt * 16,
           softness: SHOWCASE.scatterSoftness,
         });
         break;
@@ -1223,7 +1494,7 @@ export const mount = (root: HTMLElement): (() => void) => {
         // Negative kick → particles pulled TOWARD cursor.
         w.applyRadialImpulse({
           origin: { x, y },
-          kick: -state.scatterKick * dpr * dt * 4,
+          kick: -state.scatterKick * dpr * dt * 11,
           softness: SHOWCASE.scatterSoftness,
         });
         break;
@@ -1235,7 +1506,7 @@ export const mount = (root: HTMLElement): (() => void) => {
         // proxy: combine a mild attractor with an orbital "kick" from
         // an offset point. The visual reads as swirl around cursor.
         const phase = (performance.now() / 240) % (Math.PI * 2);
-        const r = state.scatterKick * dpr * dt * 3;
+        const r = state.scatterKick * dpr * dt * 9;
         w.applyRadialImpulse({
           origin: {
             x: x + Math.cos(phase) * 80 * dpr,
@@ -1253,7 +1524,7 @@ export const mount = (root: HTMLElement): (() => void) => {
         // left/right shifts where things rain down.
         w.applyRadialImpulse({
           origin: { x, y: -10000 * dpr },
-          kick: state.scatterKick * dpr * dt * 0.2,
+          kick: state.scatterKick * dpr * dt * 0.8,
           softness: 0.0001,
         });
         break;
@@ -1268,7 +1539,10 @@ export const mount = (root: HTMLElement): (() => void) => {
       // intercepts Escape before it reaches us anyway, but checking
       // here keeps the contract explicit.)
       if (isFullscreen()) return;
-      window.history.pushState({}, '', '/experiments');
+      // Embed-safe: when exitTo is null the host owns navigation, so Esc
+      // does nothing here.
+      if (exitTo == null) return;
+      window.history.pushState({}, '', exitTo);
       window.dispatchEvent(new PopStateEvent('popstate'));
     } else if (e.key === 'm' || e.key === 'M') {
       // Don't fire if a slider has focus — preserves text-input UX
@@ -1299,7 +1573,7 @@ export const mount = (root: HTMLElement): (() => void) => {
   canvas.addEventListener('pointerdown', onPointerDown);
   canvas.addEventListener('pointerup', onPointerUp);
   canvas.addEventListener('pointercancel', onPointerUp);
-  window.addEventListener('keydown', onKeyDown);
+  if (keyboardEnabled) window.addEventListener('keydown', onKeyDown);
   const onResize = () => applySize();
   window.addEventListener('resize', onResize);
 
@@ -1311,6 +1585,7 @@ export const mount = (root: HTMLElement): (() => void) => {
       status.textContent = 'WEBGPU REQUIRED';
       hint.textContent = 'this showcase needs a WebGPU adapter (Chrome / Edge / FF nightly)';
       hint.style.opacity = '1';
+      options.onFallback?.('webgpu-unavailable');
       return;
     }
 
@@ -1322,14 +1597,20 @@ export const mount = (root: HTMLElement): (() => void) => {
         particleSize: SHOWCASE.particleSize * dpr,
         trailAlpha: SHOWCASE.trailAlpha,
         portalMode: false,
-        // White surface: the WebGPU renderer clears + trail-paints to this
-        // each frame (opaque mode). Source-over particle blend then darkens
-        // it — the whole reason black particles read here. See
+        // Surface color for the active colorway: the WebGPU renderer clears +
+        // trail-paints to this each frame (opaque mode). Source-over particle
+        // blend then composites over it — dark particles darken white (ink),
+        // light particles brighten black (chalk). See
         // docs/rendering-blend-modes.md.
-        background: '255,255,255',
+        background: cw.rendererBg,
         onFallback: (e) => console.warn('[six-showcase-ink] renderer:', e.message),
       }),
-      loadGlb(sixLogoGlb),
+      loadGlb(
+        options.logoUrl ??
+          // Lazy default — kept out of the eager bundle so consumers that pass
+          // their own logoUrl never download the 882 KB asset.
+          (await import('../assets/6ixLogo.glb?url')).default,
+      ),
     ]);
     if (disposed) return;
 
@@ -1344,6 +1625,7 @@ export const mount = (root: HTMLElement): (() => void) => {
     if (disposed) return;
     if (world.backend !== 'gpu') {
       status.textContent = 'GPU WORLD UNAVAILABLE';
+      options.onFallback?.('gpu-world-unavailable');
       return;
     }
 
@@ -1377,6 +1659,9 @@ export const mount = (root: HTMLElement): (() => void) => {
       // so the symbol reads clearly at the reduced size.
       targetRadius: SHOWCASE.modelRadius * 0.62,
       strokeThickness: 0.18,
+      // Extrude along Z so it carries the same 3D body as the heart / logo
+      // instead of looking like a flat wafer when it rotates.
+      depth: 0.2,
     });
     clouds.heart = sampleHeart({
       n: PARTICLE_CAP,
@@ -1403,7 +1688,7 @@ export const mount = (root: HTMLElement): (() => void) => {
         y: ty + (rng() - 0.5) * 18,
         vx: 0, vy: 0, tx, ty,
         life: 1,
-        color: sampleColor(rng) as unknown as number,
+        color: sampleColor(rng, cw) as unknown as number,
       };
     }
     (world as WorldGPU).setParticles(ps);
@@ -1423,6 +1708,15 @@ export const mount = (root: HTMLElement): (() => void) => {
     });
     activeFeel = restFeel;
     feelLerpFrom = restFeel;
+
+    // Apply host-supplied control overrides now that world + renderer exist
+    // (perlin / particle-size / trail-alpha applies need them live).
+    if (options.controls) {
+      for (const k of Object.keys(options.controls) as SixInkControlKey[]) {
+        const v = options.controls[k];
+        if (typeof v === 'number') setControl(k, v);
+      }
+    }
 
     // Start the cycle on peace so the order reads peace → heart → logo.
     mode = 'peace';
@@ -1607,8 +1901,9 @@ export const mount = (root: HTMLElement): (() => void) => {
     });
 
     // HUD mini particle clouds — same rotation, no parallax tilt
-    // (jittery on a 50 px canvas).
-    drawIcons(rotX, rotY);
+    // (jittery on a 50 px canvas). Skipped entirely when the corner stack
+    // is hidden so we don't pay the per-frame canvas draw.
+    if (chrome.cornerStack) drawIcons(rotX, rotY);
 
     // Lerp the feel preset across the transition window. After the
     // transition completes, glide back to REST_FEEL across the next
@@ -1681,11 +1976,14 @@ export const mount = (root: HTMLElement): (() => void) => {
 
   void init();
 
-  return () => {
+  // The handle IS the teardown function (so the router's `cleanup()` and the
+  // ExperimentMount contract still work), augmented with the live control
+  // surface for host menus.
+  const dispose = (): void => {
     disposed = true;
     if (raf) cancelAnimationFrame(raf);
     if (glitchInterval) clearTimeout(glitchInterval);
-    clearInterval(clockInterval);
+    if (clockInterval) clearInterval(clockInterval);
     if (isFullscreen()) void document.exitFullscreen().catch(() => {});
     document.removeEventListener('fullscreenchange', onFullscreenChange);
     ro.disconnect();
@@ -1701,4 +1999,13 @@ export const mount = (root: HTMLElement): (() => void) => {
     }
     host.remove();
   };
+
+  const handle = dispose as SixInkHandle;
+  handle.dispose = dispose;
+  handle.controls = controlsMeta;
+  handle.getControl = getControl;
+  handle.getControls = getControls;
+  handle.setControl = setControl;
+  handle.disturb = disturbAll;
+  return handle;
 };

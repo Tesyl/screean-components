@@ -6,7 +6,7 @@
 // component at tick time — enables `pop({ part: 'thumb' })` against a slider
 // without the call site knowing the slider's particle indices.
 
-import { radialImpulse } from 'screean';
+import { radialImpulse } from '@tesyl/screean';
 import type { Effect } from '../effect';
 import { groupOfPart } from '../group';
 import { centroidOf } from './_geom';

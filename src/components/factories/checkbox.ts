@@ -6,7 +6,7 @@
 //
 // ARIA: role=checkbox + aria-checked={checked}. domMirror writes both.
 
-import { node, rect, type SceneNode } from 'screean';
+import { node, rect, type SceneNode } from '@tesyl/screean';
 import { component } from '../component';
 import { setPart } from '../choreography/parts';
 import type {

@@ -6,7 +6,7 @@
 
 import type { ThemeId } from '../themes';
 import { THEMES } from '../themes';
-import { circle, node } from 'screean';
+import { circle, node } from '@tesyl/screean';
 import { Reel } from '../lib/effects/Reel';
 import { type TileGroup, tileStage } from './types';
 

@@ -47,8 +47,8 @@
 // - Resize listener (consumer's existing resize flow must re-invoke reconcile)
 // - `layoutsubtree` strategy (that's Phase 3b of html-in-canvas-interop.md)
 
-import type { Scene, SceneNode } from 'screean';
-import { boundsOf, transformRect } from 'screean';
+import type { Scene, SceneNode } from '@tesyl/screean';
+import { boundsOf, transformRect } from '@tesyl/screean';
 import {
   isComponent,
   type Component,

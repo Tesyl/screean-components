@@ -16,9 +16,9 @@ import { THEMES, DEFAULT_THEME } from '../themes';
 import { renderNav, renderFooter } from '../layout';
 import { Stage, makeColor } from '../embed';
 import type { Palette } from '../themes';
-import { scene, camera } from 'screean';
-import { spawn } from 'screean';
-import { TRANSPARENT } from 'screean';
+import { scene, camera } from '@tesyl/screean';
+import { spawn } from '@tesyl/screean';
+import { TRANSPARENT } from '@tesyl/screean';
 // Site code consumes components through the package barrel, same as any
 // external consumer would. Keeps the subdivision (factories/, dom/, routing/)
 // internal to the components package.

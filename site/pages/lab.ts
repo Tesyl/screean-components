@@ -35,7 +35,7 @@ import {
   type PropDef,
 } from '../lab/types';
 import { STORIES, findStory } from '../lab/registry';
-import { easing } from 'screean';
+import { easing } from '@tesyl/screean';
 // prism for the Code tab. The TypeScript grammar is the closest match to
 // our snippets (the actual code IS TS). Imports are side-effecty — the
 // grammar registers itself onto the Prism global, the theme CSS injects

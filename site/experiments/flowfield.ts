@@ -8,7 +8,7 @@
 import { renderNav, renderFooter } from '../layout';
 import { Stage, makeColor } from '../embed';
 import { THEMES, DEFAULT_THEME } from '../themes';
-import { spawn, radialImpulse, TRANSPARENT } from 'screean';
+import { spawn, radialImpulse, TRANSPARENT } from '@tesyl/screean';
 import { stepFlowfield } from '../lib/physics/flowfield';
 import { attachFullscreenButton } from '../lib/ui/fullscreen';
 

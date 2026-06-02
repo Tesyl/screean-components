@@ -8,7 +8,7 @@
 // element with role="radiogroup" — that's a layout concern, not a
 // component-factory concern.
 
-import { node, circleField, type SceneNode } from 'screean';
+import { node, circleField, type SceneNode } from '@tesyl/screean';
 import { component } from '../component';
 import { setPart } from '../choreography/parts';
 import type {

@@ -26,7 +26,7 @@ import {
   spawn,
   TRANSPARENT,
   type SceneNode,
-} from 'screean';
+} from '@tesyl/screean';
 import {
   button,
   card,

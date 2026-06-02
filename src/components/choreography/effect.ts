@@ -10,7 +10,7 @@
 // or was cancelled mid-flight. Effects that hold transient world state
 // (setForceConstant, setTrail) MUST restore it in onEnd.
 
-import type { Particle, Scene, IWorld, World } from 'screean';
+import type { Particle, Scene, IWorld, World } from '@tesyl/screean';
 import type { Component } from '../types';
 
 // Either backend works. The runner doesn't call any world method itself —

@@ -15,17 +15,17 @@
 // surface through methods (`.setScene`, `.dispose`). A factory returning a
 // frozen API would be equivalent in spirit but heavier to read here.
 
-import { World } from 'screean';
-import { spring, drag, shimmer, neighborRepel, pointForce } from 'screean';
-import { spawn } from 'screean';
-import { createRenderer } from 'screean';
-import type { Renderer } from 'screean';
-import type { Force, Vec2 } from 'screean';
-import { packRGBA, TRANSPARENT, type Color } from 'screean';
-import { hslToRgb } from 'screean';
-import { feels, type FeelPreset } from 'screean';
-import type { SceneNode } from 'screean';
-import { camera, scene } from 'screean';
+import { World } from '@tesyl/screean';
+import { spring, drag, shimmer, neighborRepel, pointForce } from '@tesyl/screean';
+import { spawn } from '@tesyl/screean';
+import { createRenderer } from '@tesyl/screean';
+import type { Renderer } from '@tesyl/screean';
+import type { Force, Vec2 } from '@tesyl/screean';
+import { packRGBA, TRANSPARENT, type Color } from '@tesyl/screean';
+import { hslToRgb } from '@tesyl/screean';
+import { feels, type FeelPreset } from '@tesyl/screean';
+import type { SceneNode } from '@tesyl/screean';
+import { camera, scene } from '@tesyl/screean';
 import type { Palette } from './themes';
 
 // Color sampler. Each call samples once from an HSL band centered on

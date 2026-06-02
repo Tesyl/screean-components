@@ -17,8 +17,8 @@
 // is global. The lab UI / static analyzers can show this effect doesn't
 // care about group selection.
 
-import type { Easing } from 'screean';
-import { easing as curves } from 'screean';
+import type { Easing } from '@tesyl/screean';
+import { easing as curves } from '@tesyl/screean';
 import { defineEffect, type Effect, type EffectState } from '../effect';
 
 export type AnimateOpts = {
