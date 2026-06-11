@@ -21,6 +21,9 @@ const spaFallback = (): Plugin => ({
         /^\/components\/?$/.test(pathname) ||
         /^\/experiments(?:\/[a-z0-9-]+)?\/?$/i.test(pathname) ||
         /^\/lab(?:\/[a-z0-9-]+)?\/?$/i.test(pathname) ||
+        /^\/embers\/?$/i.test(pathname) ||
+        /^\/dj-screen\/?$/i.test(pathname) ||
+        /^\/menu\/?$/i.test(pathname) ||
         /^\/moonshot(?:\/[a-z0-9-]+)?\/?$/i.test(pathname)
       ) {
         req.url = '/index.html' + (q >= 0 ? url.slice(q) : '');
@@ -38,6 +41,9 @@ const spaFallback = (): Plugin => ({
         /^\/components\/?$/.test(pathname) ||
         /^\/experiments(?:\/[a-z0-9-]+)?\/?$/i.test(pathname) ||
         /^\/lab(?:\/[a-z0-9-]+)?\/?$/i.test(pathname) ||
+        /^\/embers\/?$/i.test(pathname) ||
+        /^\/dj-screen\/?$/i.test(pathname) ||
+        /^\/menu\/?$/i.test(pathname) ||
         /^\/moonshot(?:\/[a-z0-9-]+)?\/?$/i.test(pathname)
       ) {
         req.url = '/index.html' + (q >= 0 ? url.slice(q) : '');

@@ -168,6 +168,14 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     load: () => import('./sixShowcaseChalk'),
   },
   {
+    kind: 'internal',
+    name: 'particle-mask',
+    title: 'particle-mask — particles as a punch-through mask',
+    blurb: "A live particle field used as a mask that erases a frosted (blurred) colorful backdrop, revealing crisp vivid color through every particle — the equivalent of CSS `mask-composite: exclude` with the static SVG window swapped for a flowing particle cloud. The backdrop is blurred ONCE into a bitmap, so each frame is just a frost blit + one destination-out drawImage; no per-frame backdrop-filter. 'invert' flips the punch (particles become the frosted spots); 'live blur' re-blurs every frame so you can feel the cost the pre-blur path avoids. FPS readout overlaid. Click to scatter.",
+    topics: ['destination-out', 'mask compositing', 'pre-blur vs backdrop-filter', 'flowfield', 'perf probe'],
+    load: () => import('./particleMask'),
+  },
+  {
     kind: 'external',
     name: 'moonshot',
     title: 'moonshot — multi-screen react over a persistent world',

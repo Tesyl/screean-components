@@ -45,6 +45,7 @@ import {
 
 import { App } from './App';
 import { parseCssColorToRgba } from './physics';
+import { DEFAULT_PARTICLE_PALETTE, PARTICLE_COLOR_VARS } from './constant';
 
 const log = (...args: unknown[]) => console.info('[html-interop-2]', ...args);
 
@@ -104,7 +105,7 @@ type DemoState =
 
 let state: DemoState = { kind: 'dom' };
 let currentButton: HTMLButtonElement | null = null;
-let palette: Color[] = [packRGBA(230, 230, 240, 255)];
+let palette: Color[] = [...DEFAULT_PARTICLE_PALETTE];
 
 const pickColor = (): Color => palette[(Math.random() * palette.length) | 0];
 
@@ -114,17 +115,24 @@ const setButtonVisuals = (opacity: number, interactive: boolean) => {
   currentButton.style.pointerEvents = interactive ? 'auto' : 'none';
 };
 
-const samplePalette = (el: HTMLButtonElement): Color[] => {
+// Resolve the particle palette from CSS custom properties. The theme sets the
+// defaults on `:root`; a component overrides by setting the same variable on
+// its element (custom properties cascade, so reading them off `el` yields
+// component value → theme value). Falls back to a neutral light tone.
+const resolveParticlePalette = (el: HTMLElement): Color[] => {
   const cs = window.getComputedStyle(el);
   const factory = (() => document.createElement('canvas')) as unknown as Parameters<typeof parseCssColorToRgba>[1];
   const pack = (css: string): Color | null => {
-    const rgba = parseCssColorToRgba(css, factory);
+    const rgba = parseCssColorToRgba(css.trim(), factory);
     if (!rgba || rgba[3] === 0) return null;
     return packRGBA(rgba[0], rgba[1], rgba[2], 255);
   };
-  const colors = [pack(cs.backgroundColor), pack(cs.color)]
+  const colors = PARTICLE_COLOR_VARS
+    .map((v) => cs.getPropertyValue(v))
+    .filter((raw) => raw.trim() !== '')
+    .map(pack)
     .filter((c): c is Color => c !== null);
-  return colors.length ? colors : [packRGBA(230, 230, 240, 255)];
+  return colors.length ? colors : [...DEFAULT_PARTICLE_PALETTE];
 };
 
 // ---- Phase durations -----------------------------------------------------
@@ -157,7 +165,7 @@ const dissolve = async () => {
   }
 
   setStatus('particles');
-  palette = samplePalette(currentButton);
+  palette = resolveParticlePalette(currentButton);
 
   const rect = currentButton.getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
