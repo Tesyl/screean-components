@@ -33,89 +33,55 @@
         100% { transform: rotate(360deg) scale(1); }
       }
 
+      /* Pattern A: the particle canvas is an OVERLAY — full viewport, above
+         the content, pointer-events:none so it never intercepts clicks. The
+         dissolve theater paints on it; the REAL DOM below is the UI. */
       #portal {
         position: fixed;
         inset: 0;
         width: 100%;
         height: 100%;
         display: block;
-        z-index: 1;
+        z-index: 50;
         pointer-events: none;
       }
 
-      /* DOM mirror container goes here via `host` option. We set a stacking
-         context with `position: absolute; inset: 0; z-index: 2`. Mirror divs
-         get :focus-visible rings (below) so keyboard focus is clearly shown. */
-      #mirror-host {
+      /* The real-DOM content host. Components live here as actual elements
+         — the browser supplies focus rings, tab order, and screen-reader
+         semantics natively. No mirror. */
+      #content-host {
         position: absolute;
         inset: 0;
         z-index: 2;
-        pointer-events: none;
-      }
-
-      /* Make the mirror divs visually "real" so the demo reads as UI and not
-         just a point cloud. The particle field remains the primary aesthetic;
-         the DOM chrome here is quiet — a subtle dark background, hairline
-         border, readable text — that renders the *same* content the particles
-         are gathering around. Mirror + particles co-exist: you see a button.
-
-         Button-role mirrors get a pill, a border, and centered text drawn
-         from aria-label. The particle cloud overlays on top via the canvas
-         sitting above (z-index:1 vs mirror z-index:2? no — mirror is on top
-         so its background is visible THROUGH the cloud since cloud colors
-         are translucent and shape rectangles are chrome-outlined). */
-
-      /* Visual chrome only — font flows in from the component (inline style)
-         so particles + DOM mirror render at one size. */
-      #screean-mirror > div[role="button"] {
-        background: rgba(16, 14, 28, 0.72);
-        border: 1px solid rgba(180, 180, 220, 0.14);
-        border-radius: 10px;
-        backdrop-filter: blur(8px) saturate(1.1);
-        color: rgba(230, 232, 240, 0.92);
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset,
-                    0 4px 16px rgba(0,0,0,0.3);
-        /* opacity transitions handle the dissolve reform-fade. The click
-           handler in main.ts writes opacity=0 to dissolve and opacity=1 to
-           reform; CSS animates the values. */
-        transition: opacity 220ms ease, background 120ms ease, border-color 120ms ease;
+        gap: 28px;
       }
-      #screean-mirror > div[role="button"]:hover {
-        background: rgba(30, 28, 50, 0.82);
-        border-color: rgba(180, 180, 220, 0.25);
-      }
-      #screean-mirror > div[role="button"][aria-disabled="true"] {
-        background: rgba(16, 14, 28, 0.45);
-        border-color: rgba(180, 180, 220, 0.06);
-        color: rgba(230, 232, 240, 0.35);
-      }
-      /* The heading sits proudly as a standalone block — no chrome but a
-         clear text treatment that matches the canvas text the particles are
-         forming. */
-      #screean-mirror > div[role="heading"] {
-        color: rgba(240, 240, 248, 0.92);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+      #content-host h1 {
+        margin: 0;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 38px;
+        font-weight: 400;
         letter-spacing: -0.01em;
+        color: rgba(240, 240, 248, 0.92);
       }
-      #screean-mirror > div[role="text"] {
-        color: rgba(200, 205, 220, 0.70);
+      #content-host p {
+        margin: 0;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 14px;
+        color: rgba(200, 205, 220, 0.7);
+      }
+      #content-host .grid-row {
         display: flex;
+        gap: 14px;
         align-items: center;
-        justify-content: center;
       }
-
-      /* Focus ring — on keyboard focus only. Cleaner, offset outward. */
-      #screean-mirror > div:focus-visible {
+      /* Focus ring — keyboard focus only, native :focus-visible. */
+      #content-host :focus-visible {
         outline: 2px solid rgb(130, 160, 255);
         outline-offset: 3px;
-      }
-      #screean-mirror > div:focus:not(:focus-visible) {
-        outline: none;
       }
 
       .hud {
@@ -177,7 +143,7 @@
   <body>
     <div class="world-behind" aria-hidden="true"></div>
     <canvas id="portal"></canvas>
-    <div id="mirror-host"></div>
+    <div id="content-host"></div>
     <div class="hud" id="hud" aria-live="polite">
       <h4>accessibility inspector</h4>
       <div class="row"><span class="key">focused:</span> <span class="val muted" id="hud-focused">—</span></div>

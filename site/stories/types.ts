@@ -10,7 +10,10 @@ import { THEMES, type FeelName, type ThemeId } from '../themes';
 import type { FeelPreset } from '@tesyl/screean';
 
 export type TileSetup = {
-  stage: Stage;
+  // Optional: tiles that render via a Stage return it so the page
+  // teardown can dispose it. Tiles built on the transition core
+  // (componentReel) own no Stage — they clean up via `dispose` alone.
+  stage?: Stage;
   // Optional per-tile interval timer for choreography demos. The teardown
   // path nulls these out so the page leave is GC-clean.
   timer?: ReturnType<typeof setInterval>;

@@ -21,7 +21,7 @@ import {
   uninstallOffscreenCanvasStub,
 } from '../../testing/offscreenCanvasStub';
 import { __resetComponentIds } from '../component';
-import { slider } from '../factories/slider';
+import { testSlider } from './_testComponents';
 import { createChoreoRunner } from './runner';
 import { groupOfComponent } from './group';
 import { pipe } from './pipeline';
@@ -43,7 +43,7 @@ afterEach(() => {
 });
 
 const setupSlider = () => {
-  const sli = slider({ value: 0.5, onChange: () => {} });
+  const sli = testSlider();
   const s = scene({ particleCount: 12 }, sli);
   s.tick(0);
   const w = new World({ width: 200, height: 200 });

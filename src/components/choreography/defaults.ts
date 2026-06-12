@@ -8,8 +8,7 @@
 
 import type { AriaRole } from '../types';
 import type { Pipeline } from './pipeline';
-import { pipe, at } from './pipeline';
-import { dissolve } from './effects/dissolve';
+import { pipe } from './pipeline';
 import { pop } from './effects/pop';
 import { narrow } from './combinators';
 
@@ -22,15 +21,11 @@ export type ChoreoMap = Record<string, Pipeline | StatePair>;
 // Top-level: only roles with canonical motion get entries. Roles not listed
 // (text, link, heading, none, img, textbox) opt out of the system's defaults.
 export const defaultChoreography: Partial<Record<AriaRole, ChoreoMap>> = {
+  // Component DISSOLVES are no longer a choreography concern — they live in
+  // the transition core (src/components/transition, Decision point 4). The
+  // button default is the pop accent only.
   button: {
-    onClick: pipe(
-      pop({ intensity: 0.4 }),
-      at(120, dissolve({
-        particlePhaseMs: 1200,
-        returnMs: 300,
-        fadeMs: 220,
-      })),
-    ),
+    onClick: pipe(pop({ intensity: 0.4 })),
   },
   switch: {
     onChange: pipe(narrow('knob', pop({ intensity: 0.6 }))),

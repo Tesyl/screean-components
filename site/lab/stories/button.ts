@@ -1,45 +1,58 @@
-// Button story for the lab. Tunable opts: label text, dimensions, font.
-// onClick is wired to the lab's activate callback so every click triggers
-// the dissolve choreography.
+// Button story — the library's signature interaction.
+//
+// Pattern A: each button is a REAL <button> (headlessButton). Activation
+// contract: business onClick runs FIRST, on the live element, then the
+// dissolve round-trip plays. The previous version (git history) returned a
+// scene-graph SDF button rebuilt per knob change; here the buttons just sit
+// in the page and the browser supplies focus, Enter/Space, and semantics.
 
-import { button, type Handler } from '../../../src/components';
+import { headlessButton } from '../../../src/components';
 import type { LabStory } from '../types';
+import { storyCaption, storyColumn, storyReadout, storyRow, teardownOf } from '../kit';
+
+const ACTIONS = ['Save', 'Duplicate', 'Reset'] as const;
 
 export const buttonStory: LabStory = {
   name: 'button',
   title: 'Button',
-  blurb: 'Activation control. Rounded chrome + label. onClick fires the dissolve cycle on every click.',
-  defaultProps: {
-    label: 'TAP ME',
-    width: 220,
-    height: 64,
-    radius: 14,
-    fontWeight: 700,
-    fontSize: 22,
+  blurb:
+    'Activation control. Real <button>; onClick runs live, then the element round-trips through particles.',
+  mount: (host, screen) => {
+    const col = storyColumn();
+    const log = storyReadout('— click a button —');
+
+    const buttons = ACTIONS.map((label) =>
+      headlessButton({
+        screen,
+        label,
+        onClick: () => log.set(`${label} activated`),
+      }),
+    );
+    // Disabled sibling — proves aria-disabled + pointer-events gating
+    // without any mirror plumbing.
+    const disabled = headlessButton({
+      screen,
+      label: 'Submit',
+      disabled: true,
+      onClick: () => log.set('Submit activated (should never log)'),
+    });
+
+    col.append(
+      storyCaption(
+        'Tab to focus · Enter / Space or click to activate. The handler fires on the live element; the dissolve is the transition artifact, not the click.',
+      ),
+      storyRow([...buttons.map((b) => b.el), disabled.el]),
+      log.el,
+    );
+    host.appendChild(col);
+
+    return teardownOf(col, ...buttons, disabled);
   },
-  propDefs: [
-    { kind: 'string', key: 'label', label: 'label' },
-    { kind: 'number', key: 'width',  label: 'width',  min: 80,  max: 400, step: 4 },
-    { kind: 'number', key: 'height', label: 'height', min: 30,  max: 140, step: 2 },
-    { kind: 'number', key: 'radius', label: 'radius', min: 0,   max: 40,  step: 1 },
-    { kind: 'number', key: 'fontWeight', label: 'font weight', min: 100, max: 900, step: 100 },
-    { kind: 'number', key: 'fontSize',   label: 'font size',   min: 10,  max: 48,  step: 1 },
-  ],
-  build: (props, onActivate: Handler) =>
-    button({
-      label: String(props.label ?? ''),
-      width: Number(props.width),
-      height: Number(props.height),
-      radius: Number(props.radius),
-      font: `${props.fontWeight} ${props.fontSize}px ui-monospace, "SF Mono", Menlo, monospace`,
-      onClick: onActivate,
-    }),
-  codeTemplate: `button({
-  label: '{{label}}',
-  width: {{width}},
-  height: {{height}},
-  radius: {{radius}},
-  font: '{{fontWeight}} {{fontSize}}px ui-monospace, "SF Mono", Menlo, monospace',
-  onClick: (e) => dissolve.trigger(e.component),
-})`,
+  code: `const save = headlessButton({
+  screen,                       // the shared ScreenController
+  label: 'Save',
+  onClick: () => commit(),      // runs first, live
+  // dissolveOnActivate: true   // default — element → particles → element
+});
+host.appendChild(save.el);`,
 };

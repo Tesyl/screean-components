@@ -58,9 +58,9 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
   {
     kind: 'internal',
     name: 'button',
-    title: 'button — hover / press / click',
-    blurb: 'A screean button() with hover + press + click handlers wired through pointerTracker. Particles recolor live as state changes.',
-    topics: ['button', 'pointerTracker', 'routePointerEvent', 'recolor'],
+    title: 'button — native events, rasterized activation',
+    blurb: "The button experiment rebuilt on Pattern A. headlessButton is a real <button>: hover/press are genuine CSS :hover/:active rules, pointer events fire natively (no canvas hit-test routing), and Tab+Enter works for free. Clicking runs the handler, then screen.dissolve(el) rasterizes the element as painted and round-trips it through the shared transition core. Three skins on one factory show the headless split — each variant's cloud inherits its own --screean-particle tokens.",
+    topics: ['Pattern A', 'headlessButton', 'native events', ':hover/:active', 'createScreenController'],
     load: () => import('./button'),
   },
   {
@@ -114,9 +114,9 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
   {
     kind: 'internal',
     name: 'controls',
-    title: 'controls — every factory, controlled-input',
-    blurb: 'The full v1 component library wired with the controlled-input pattern. textField creates a real <input> via the DOM mirror; checkbox / radio / image / button / card / label all live in one form. Stable IDs across rebuilds preserve cursor + element identity.',
-    topics: ['component library', 'DOM mirror', 'controlled input', 'form'],
+    title: 'controls — real DOM, rasterized transitions',
+    blurb: 'The controls showcase rebuilt on Pattern A (DOM-rasterize). Every control is a real element — no mirror, no scene graph: checkbox / switch / radio / text field are plain DOM; button + slider are the headless factories. Activating a discrete control mutates state, then screen.dissolve(el) rasterizes it as painted and round-trips it through the shared transition core. The slider and text field stay live-dom — only their edges (double-click / commit) dissolve.',
+    topics: ['Pattern A', 'createScreenController', 'headless components', 'rasterize vs live-dom'],
     load: () => import('./controls'),
   },
   {
@@ -131,8 +131,8 @@ export const EXPERIMENTS: ReadonlyArray<Experiment> = [
     kind: 'internal',
     name: 'visual-fallaway',
     title: 'visual.fallaway — depth axis: visual vs physical',
-    blurb: "Two buttons, two depth flavors. Left runs popTo3D (physical: per-particle tz + z-spring). Right runs visual.fallAway (scale + fade only, no z). Both feel like receding; only one actually moves particles in z. The visual version works on every backend including future visionOS without a z field on the GPU struct.",
-    topics: ['visual.fallAway', 'popTo3D', 'depth-axis split', 'recipes'],
+    blurb: "Two real DOM buttons, two depth flavors. Click either — the element rasterizes as painted (bitmapFieldFromElement), a particle stand-in takes its place on the exact silhouette, the recipe plays, and the DOM returns. Left runs popTo3D (physical: per-particle tz + z-spring). Right runs visual.fallAway → wait → riseUp (scale + fade, no z). Same recipes as before — choreography is field-agnostic; only the field source changed (SDF scene → rasterized real DOM).",
+    topics: ['Pattern A', 'visual.fallAway', 'popTo3D', 'bitmapFieldFromElement', 'depth-axis split'],
     load: () => import('./visualFallAway'),
   },
   {

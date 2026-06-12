@@ -22,7 +22,7 @@ import {
 } from '../../testing/offscreenCanvasStub';
 import { __resetComponentIds } from '../component';
 import { button } from '../factories/button';
-import { toggle } from '../factories/toggle';
+import { testToggle } from './_testComponents';
 import { applyDefaultChoreography } from './apply';
 import { createChoreoRunner } from './runner';
 import { pipe } from './pipeline';
@@ -63,21 +63,33 @@ const setupRunner = (component: ReturnType<typeof button>) => {
 };
 
 describe('applyDefaultChoreography', () => {
-  it('wires button click to dissolve via the registry', () => {
+  // The registry's button default is the pop accent only — component
+  // DISSOLVES moved to the transition core (src/components/transition).
+  it('wires button click to the registry default (pop) without eating the consumer handler', () => {
     let consumerCalled = 0;
     const btn = button({ label: 'Save', onClick: () => consumerCalled++ });
-    const { runner, mirror } = setupRunner(btn);
+    const { runner, particles } = setupRunner(btn);
 
     runner.tick(0);
     applyDefaultChoreography(runner, btn);
 
+    // Snap particles onto their bound targets — pop's radialImpulse needs
+    // real distances from the centroid (all-at-origin → zero-length kicks).
+    for (const p of particles) {
+      p.x = p.tx;
+      p.y = p.ty;
+    }
+    const before = particles.map((p) => ({ vx: p.vx, vy: p.vy }));
     btn._component.handlers.onClick?.({} as never);
-    runner.tick(0);
-    runner.tick(50); // pop fires; dissolve queued at 120ms
+    runner.tick(0); // pop's first tick applies its radial impulse
 
     expect(consumerCalled).toBe(1); // consumer handler still fires
-    runner.tick(180); // dissolve has started → mirror hidden
-    expect(mirror.style.opacity).toBe('0');
+    // The pop effect visibly acts on the button's bound particles
+    // (radialImpulse = velocity kick).
+    const touched = particles.some(
+      (p, i) => p.vx !== before[i].vx || p.vy !== before[i].vy,
+    );
+    expect(touched).toBe(true);
   });
 
   it('per-instance override beats registry for that event only', () => {
@@ -120,7 +132,7 @@ describe('applyDefaultChoreography', () => {
     // toggle has a registry entry (onChange), but to test the no-entry fall-
     // back, use a Component with role='none'. We construct a button-like with
     // an explicit no-op via override path.
-    const t = toggle({ on: false, onChange: () => {} });
+    const t = testToggle();
     const { runner } = setupRunner(t as unknown as ReturnType<typeof button>);
     runner.tick(0);
     // toggle role is 'switch'; registry has onChange. Override with empty

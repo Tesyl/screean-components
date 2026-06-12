@@ -127,7 +127,7 @@ export const renderComponents = (themeId: ThemeId = DEFAULT_THEME): (() => void)
     for (const s of currentSetups) {
       if (s.timer) clearInterval(s.timer);
       s.dispose?.();
-      s.stage.dispose();
+      s.stage?.dispose();
     }
     currentSetups = [];
   };

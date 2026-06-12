@@ -38,6 +38,43 @@ export type AriaRole =
   | 'text'
   | 'textbox';
 
+// ─── Render strategy (Pattern A migration, audit §4 Step 0) ─────────────────
+//
+// How a component's pixels reach the screen under the DOM-first model:
+//
+//   'rasterize' — DISCRETE components. The real DOM element is the visible
+//                 steady state; it rasterizes via bitmapFieldFromElement at
+//                 transition edges (dissolve/swap) only.
+//   'live-dom'  — CONTINUOUS components (slider drag, text input/IME). The
+//                 element stays live and interactive through its continuous
+//                 gesture; ONLY the transition edges rasterize. Never
+//                 rasterize away live interaction (Decision §5).
+//
+// Type-coupled to AriaRole: adding a role without classifying it here is a
+// compile error — the strategy table is the Step-0 boundary, kept honest by
+// the compiler.
+export type RenderStrategy = 'rasterize' | 'live-dom';
+
+export const RENDER_STRATEGY_BY_ROLE = {
+  button: 'rasterize',
+  checkbox: 'rasterize',
+  heading: 'rasterize',
+  img: 'rasterize',
+  link: 'rasterize',
+  none: 'rasterize',
+  radio: 'rasterize',
+  slider: 'live-dom',
+  switch: 'rasterize',
+  text: 'rasterize',
+  textbox: 'live-dom',
+} as const satisfies Record<AriaRole, RenderStrategy>;
+
+// Strategy lookup that preserves the literal type per role
+// (e.g. `renderStrategyOf('slider')` is typed `'live-dom'`, not the union).
+export const renderStrategyOf = <R extends AriaRole>(
+  role: R,
+): (typeof RENDER_STRATEGY_BY_ROLE)[R] => RENDER_STRATEGY_BY_ROLE[role];
+
 // World-space coords are the primary; screen/local exposed for consumers that
 // need them (gesture overlays, local-space drag math). Keeping them eager
 // rather than lazy keeps the shape predictable at log/print time — the ~32

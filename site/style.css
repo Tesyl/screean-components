@@ -1777,8 +1777,9 @@ html { scroll-behavior: smooth; scroll-padding-top: 64px; }
   background: #06050d;
 }
 
-/* Stage: full-bleed canvas + the drift backdrop. Mirror host sits as
-   another absolute layer above the canvas. */
+/* Stage: drift backdrop + Pattern A layering — REAL components in the
+   content host below, the particle canvas as an overlay ABOVE them
+   (pointer-events: none; it only paints during a transition cycle). */
 .lab-stage {
   position: absolute;
   inset: 0;
@@ -1804,18 +1805,29 @@ html { scroll-behavior: smooth; scroll-padding-top: 64px; }
   100% { transform: rotate(360deg) scale(1); }
 }
 .lab-canvas {
-  position: relative;
-  z-index: 1;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   display: block;
   width: 100%;
   height: 100%;
   background: transparent;
+  pointer-events: none;
 }
-.lab-mirror-host {
+/* The real-DOM story area. Components live here as actual elements —
+   the browser supplies focus rings, tab order, and screen-reader
+   semantics natively. No mirror. */
+.lab-content-host {
   position: absolute;
   inset: 0;
-  z-index: 2;
-  pointer-events: none;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lab-content-host :focus-visible {
+  outline: 2px solid rgb(130, 160, 255);
+  outline-offset: 3px;
 }
 
 /* Shared overlay style — the glass plate every floating panel sits on.

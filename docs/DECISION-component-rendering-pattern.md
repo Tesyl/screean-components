@@ -1,6 +1,6 @@
 # DECISION — Component rendering pattern & styling-layer seam
 
-**Status:** Accepted
+**Status:** Accepted · **EXECUTED 2026-06-11** (see [`headless-components-guide.md`](./headless-components-guide.md) for the canonical post-migration guide)
 **Author:** Kolbe
 **Date:** 2026-06-03
 **Scope:** `screean-components/src/components/` (the component library) and the dissolve/reform transition core shared with `screean/react`.

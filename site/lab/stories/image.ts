@@ -1,85 +1,83 @@
-// Image story — bitmap → particle field. Decorative; uses the panel's
-// Trigger button for activation (no onClick on image components).
+// Image story — decode-then-dissolve.
 //
-// Source: a programmatic canvas drawn at mount with a customizable
-// pattern (rings, grid, gradient). Real image files would land at
-// site/assets/ and be loaded via `?url` import.
+// Pattern A: a real <img>. The image-specific concern is readiness —
+// rasterizing before the bitmap decodes samples an empty silhouette, so
+// headlessImage's dissolve() awaits decode() first. The source here is a
+// programmatic canvas exported as a data: URL — explicitly the safe input
+// class for the rasterizer (no cross-origin tainting; see the DECISION
+// doc's url() gotcha). The previous version (git history) fed the canvas
+// straight into the SDF image factory's pixel sampler.
 
-import { image } from '../../../src/components';
+import { headlessButton, headlessImage } from '../../../src/components';
 import type { LabStory } from '../types';
+import { storyCaption, storyColumn, teardownOf } from '../kit';
 
-// Lazy-init programmatic source so the story object can be defined
-// statically. Built once per story-mount; rebuilds on prop change reuse it.
-let cachedSource: HTMLCanvasElement | null = null;
-let cachedPattern: string | null = null;
-let cachedSize = 0;
+const SOURCE_SIZE_PX = 96;
+const RENDER_SIZE_PX = 160;
+const RING_STEP_PX = 6;
+const RING_COLOR = 'rgba(199, 255, 81,';
+const BACKDROP_COLOR = '#06050d';
 
-const buildSource = (size: number, pattern: string): HTMLCanvasElement => {
-  if (cachedSource && cachedSize === size && cachedPattern === pattern) {
-    return cachedSource;
-  }
+// Programmatic rings pattern → data: URL. Pure for a fixed size; built
+// once at mount.
+const ringsDataUrl = (size: number): string => {
   const c = document.createElement('canvas');
   c.width = size;
   c.height = size;
-  const ctx = c.getContext('2d')!;
-  ctx.fillStyle = '#06050d';
+  const ctx = c.getContext('2d');
+  if (!ctx) return '';
+  ctx.fillStyle = BACKDROP_COLOR;
   ctx.fillRect(0, 0, size, size);
-  if (pattern === 'rings') {
-    for (let r = size / 2; r > 4; r -= 6) {
-      ctx.beginPath();
-      ctx.arc(size / 2, size / 2, r, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(199, 255, 81, ${1 - r / (size / 2) * 0.7})`;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-  } else if (pattern === 'grid') {
-    ctx.strokeStyle = 'rgba(199, 255, 81, 0.55)';
-    ctx.lineWidth = 1;
-    const step = Math.max(6, size / 12);
-    for (let i = step; i < size; i += step) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0); ctx.lineTo(i, size);
-      ctx.moveTo(0, i); ctx.lineTo(size, i);
-      ctx.stroke();
-    }
-  } else { // 'glow'
-    const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    grad.addColorStop(0, 'rgba(199, 255, 81, 0.95)');
-    grad.addColorStop(1, 'rgba(199, 255, 81, 0)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, size, size);
+  for (let r = size / 2; r > 4; r -= RING_STEP_PX) {
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, r, 0, Math.PI * 2);
+    ctx.strokeStyle = `${RING_COLOR} ${1 - (r / (size / 2)) * 0.7})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
-  cachedSource = c;
-  cachedSize = size;
-  cachedPattern = pattern;
-  return c;
+  return c.toDataURL('image/png');
 };
 
 export const imageStory: LabStory = {
   name: 'image',
   title: 'Image',
-  blurb: 'Bitmap → particle field. Pre-loaded HTMLImageElement / Canvas / OffscreenCanvas; particles bind to opaque pixels weighted by alpha. role=img.',
-  defaultProps: {
-    pattern: 'rings',
-    sourceSize: 96,
-    renderSize: 160,
+  blurb:
+    'Real <img>. dissolve() awaits decode() so the rasterizer never samples an empty bitmap.',
+  mount: (host, screen) => {
+    const col = storyColumn();
+
+    const img = headlessImage({
+      screen,
+      src: ringsDataUrl(SOURCE_SIZE_PX),
+      alt: 'Concentric rings test pattern',
+      width: RENDER_SIZE_PX,
+      height: RENDER_SIZE_PX,
+    });
+    const trigger = headlessButton({
+      screen,
+      label: 'Dissolve image',
+      dissolveOnActivate: false, // the trigger stays put; the image cycles
+      onClick: () => void img.dissolve(),
+    });
+
+    col.append(
+      storyCaption(
+        'A data: URL source — the safe input class for the rasterizer (same-origin, no canvas tainting). Dissolve awaits decode() first, then captures the painted bitmap.',
+      ),
+      img.el,
+      trigger.el,
+    );
+    host.appendChild(col);
+
+    return teardownOf(col, img, trigger);
   },
-  propDefs: [
-    { kind: 'enum',   key: 'pattern',    label: 'pattern',    options: ['rings', 'grid', 'glow'] },
-    { kind: 'number', key: 'sourceSize', label: 'source px',  min: 32,  max: 256, step: 8 },
-    { kind: 'number', key: 'renderSize', label: 'render px',  min: 64,  max: 320, step: 8 },
-  ],
-  build: (props) =>
-    image({
-      source: buildSource(Number(props.sourceSize), String(props.pattern)),
-      width: Number(props.renderSize),
-      height: Number(props.renderSize),
-      ariaLabel: `image · ${props.pattern}`,
-    }),
-  codeTemplate: `image({
-  source: /* HTMLImageElement | ImageBitmap | Canvas */,
-  width: {{renderSize}},
-  height: {{renderSize}},
-  ariaLabel: 'image · {{pattern}}',
-})`,
+  code: `const img = headlessImage({
+  screen,
+  src: '/assets/pattern.png',    // same-origin or data: — never a tainting src
+  alt: 'Concentric rings test pattern',
+  width: 160,
+  height: 160,
+});
+host.appendChild(img.el);
+await img.dissolve();            // awaits decode() before rasterizing`,
 };

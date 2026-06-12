@@ -91,6 +91,23 @@ The "premier" pattern (real DOM → rasterize → dissolve → reform) is confin
 
 ## 4. Migration plan
 
+> **✅ EXECUTED 2026-06-11.** All steps below are done — see
+> [`headless-components-guide.md`](./headless-components-guide.md) for the
+> canonical post-migration guide. Summary of how each landed:
+> **Step 0** → `RenderStrategy` + `RENDER_STRATEGY_BY_ROLE` (type-coupled) in `src/components/types.ts`.
+> **Step 1** → `src/components/transition/` (`createScreenController` + the
+> extracted four-frame machine; opts grew `originOf`/`minView`/`feelOverrides`/`fadeMs`).
+> **Step 2** → `src/components/headless/` — full DOM-first library (button,
+> slider, checkbox, toggle, radio+group, textField, card, label, image).
+> **Step 3** → button-grid, routing demo, controls, lab (mount + 9 stories),
+> button experiment, visual-fallaway (Pattern-A fields, recipes kept) all migrated.
+> **Step 4** → deleted: `choreography/effects/dissolve.ts`, `dom/domMirror.ts`,
+> 7 orphaned SDF factories; componentReel is a thin adapter over the core.
+> Retained legacy surface: `factories/{button,label}`, `routing/`,
+> `component.ts` — consumed only by `src/demos/legacy-demo` (historical
+> reference). Remaining follow-up: upstream the core into `screean/react`'s
+> `ScreenProvider` (it still carries its own copy of the machine).
+
 Goal: make Pattern A the standard way components render, collapse the three dissolve implementations to one, and keep Pattern-B internals only where genuinely needed (continuous controls like sliders mid-drag).
 
 > Each step: **[Complexity]**, ⚠️ **gotchas/LLM-fallacies**, 🔧 **technical details**.
@@ -120,7 +137,7 @@ Goal: make Pattern A the standard way components render, collapse the three diss
 
 ### Step 4 — Consolidate & document
 **[Low]** Delete the dead dissolve path(s), update `src/components/index.ts` barrel, and write the canonical "how to render a dissolving UI component" doc next to this audit.
-- ⚠️ Keep `componentReel.ts` or fold it into the shared helper — don't leave a 4th near-duplicate.
+- ✅ ~~Keep `componentReel.ts` or fold it into the shared helper — don't leave a 4th near-duplicate.~~ **Done (2026-06-11):** `site/lib/effects/componentReel.ts` is now a thin adapter over `createScreenController` — its hand-rolled phase machine, Stage, and world management are gone. The fold required three core opts added for canvas-local deployments: `originOf` (rasterize/spawn anchor in canvas coords), `minView` (tile-size clamp floor), `feelOverrides` + tunable `fadeMs`. The adapter keeps only: DOM mount, theme-palette → `--screean-particle*` bridge, idle auto-loop timer, click wiring. Note: the core's pointer sensor is viewport-based, so canvas-local consumers must zero `pointerAttract` (componentReel does).
 - 🔧 Add a constants module (`CAP_SNAKE_CASE`) for the phase durations currently scattered as locals (`PARTICLE_PHASE_MS`, `RETURN_MS`, `FADE_MS`, `RETURN_LERP_K`) so the timing is type-coupled and tunable in one place.
 
 ### Recommended sequencing (re-prioritized per the DECISION)

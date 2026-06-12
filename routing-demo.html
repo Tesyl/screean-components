@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>screean · routing · morph</title>
+    <title>screean · routing · swap</title>
     <style>
       :root { color-scheme: dark; }
       html, body {
@@ -28,71 +28,94 @@
         100% { transform: rotate(360deg) scale(1); }
       }
 
+      /* Pattern A: the particle canvas is an OVERLAY — full viewport, above
+         the content, pointer-events:none so it never intercepts clicks. The
+         dissolve theater paints on it; the REAL DOM below is the UI. */
       #portal {
         position: fixed; inset: 0; width: 100%; height: 100%;
-        display: block; z-index: 1; pointer-events: none;
-      }
-      #mirror-host {
-        position: absolute; inset: 0; z-index: 2; pointer-events: none;
+        display: block; z-index: 50; pointer-events: none;
       }
 
-      /* Mirror base transition. Opacity ONLY — no scale animation.
-         Scaling the mirror while the particle cloud sits at the button's
-         full-size silhouette creates a visible "UI grows into place" mismatch
-         at the end of the reform beat. Particles are already pixel-accurate
-         on the target; the button just fades in over them. */
-      #screean-mirror > div {
-        transition: opacity 260ms cubic-bezier(0.25, 0.6, 0.2, 1);
+      /* The real-DOM content host. Route views live here as actual elements
+         — focus rings, tab order, and screen-reader semantics are native.
+         Grid with a single cell: during a swap the outgoing and incoming
+         views overlap in the same centered cell. */
+      #content-host {
+        position: absolute; inset: 0; z-index: 2;
+        display: grid;
+        place-items: center;
       }
-      /* Route-themed button accent. main.ts writes
-         `data-route="home|gallery|settings"` on the document root; CSS below
-         tints button bg + border per route. The same hue is used by the
-         particle palette (see main.ts HUES) so cloud and UI match. */
-      :root { --accent: rgba(180, 180, 220, 0.14); --accent-bg: rgba(16, 14, 28, 0.72); }
-      :root[data-route="home"]     { --accent: rgba(160, 120, 255, 0.45); --accent-bg: rgba(28, 18, 56, 0.72); }
-      :root[data-route="gallery"]  { --accent: rgba(80, 200, 220, 0.45);  --accent-bg: rgba(10, 36, 48, 0.72); }
-      :root[data-route="settings"] { --accent: rgba(255, 180, 80, 0.45);  --accent-bg: rgba(40, 28, 10, 0.72); }
+      .route-view {
+        grid-area: 1 / 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 28px;
+        padding: 32px;
+        text-align: center;
+      }
+      .route-view h1 {
+        margin: 0;
+        font-size: clamp(28px, 5vmin, 56px);
+        font-weight: 300;
+        letter-spacing: -0.01em;
+        color: rgba(240, 240, 248, 0.92);
+      }
+      .route-view p {
+        margin: 0;
+        font-size: clamp(12px, 1.6vmin, 16px);
+        color: rgba(200, 205, 220, 0.65);
+      }
+      .route-row { display: flex; gap: 14px; align-items: center; }
 
-      /* Visual chrome only — font flows in from the component (inline style)
-         so particles + DOM mirror render at one size. */
-      #screean-mirror > div[role="button"] {
-        background: var(--accent-bg);
-        border: 1px solid var(--accent);
-        border-radius: 10px;
-        backdrop-filter: blur(8px) saturate(1.1);
-        color: rgba(230, 232, 240, 0.92);
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset,
-                    0 4px 16px rgba(0,0,0,0.3);
+      /* Route accents — keyed off the VIEW element, NOT :root. The
+         rasterizer serializes only the view subtree into its foreignObject
+         SVG, so selectors anchored on ancestors outside it (html/:root)
+         would silently lose the theme during capture.
+
+         Each route carries its accent pair (button chrome reads them as
+         inline var() references) plus a three-slot particle palette around
+         the route hue. Hues mirror ROUTE_HUES in src/demos/routing/constant.ts
+         — keep them in sync (this seam is invisible to the compiler). */
+      .route-view[data-route="home"] {     /* violet · hue 265 */
+        --accent: rgba(160, 120, 255, 0.45);
+        --accent-bg: rgba(28, 18, 56, 0.72);
+        --screean-particle:   hsl(265 72% 62%);
+        --screean-particle-2: hsl(245 72% 58%);
+        --screean-particle-3: hsl(285 72% 66%);
       }
-      /* Background + border transitions for the route-accent shift. Each nav
-         glides the theme from old to new route in sync with the particle
-         morph. 600ms aligns with the total nav cycle. */
-      #screean-mirror > div[role="button"] {
-        transition: opacity 260ms cubic-bezier(0.25, 0.6, 0.2, 1),
-                    background 600ms cubic-bezier(0.25, 0.6, 0.2, 1),
+      .route-view[data-route="gallery"] {  /* teal · hue 185 */
+        --accent: rgba(80, 200, 220, 0.45);
+        --accent-bg: rgba(10, 36, 48, 0.72);
+        --screean-particle:   hsl(185 72% 62%);
+        --screean-particle-2: hsl(165 72% 58%);
+        --screean-particle-3: hsl(205 72% 66%);
+      }
+      .route-view[data-route="settings"] { /* amber · hue 32 */
+        --accent: rgba(255, 180, 80, 0.45);
+        --accent-bg: rgba(40, 28, 10, 0.72);
+        --screean-particle:   hsl(32 72% 62%);
+        --screean-particle-2: hsl(12 72% 58%);
+        --screean-particle-3: hsl(52 72% 66%);
+      }
+
+      /* Button hover glide between route accents. Hover/transition states
+         are live-DOM-only chrome — the rasterizer captures the resting
+         computed style, which is exactly what we want. */
+      .route-view button {
+        transition: background 600ms cubic-bezier(0.25, 0.6, 0.2, 1),
                     border-color 600ms cubic-bezier(0.25, 0.6, 0.2, 1);
       }
-      #screean-mirror > div[role="button"]:hover {
-        background: color-mix(in srgb, var(--accent-bg) 80%, var(--accent) 20%);
-        border-color: color-mix(in srgb, var(--accent) 70%, white 10%);
-      }
-      #screean-mirror > div[role="heading"] {
-        color: rgba(240, 240, 248, 0.92);
-        display: flex; align-items: center; justify-content: center;
-        letter-spacing: -0.01em;
-      }
-      #screean-mirror > div[role="text"] {
-        color: rgba(200, 205, 220, 0.65);
-        display: flex; align-items: center; justify-content: center;
+      .route-view button:hover {
+        background: color-mix(in srgb, var(--accent-bg) 80%, var(--accent) 20%) !important;
+        border-color: color-mix(in srgb, var(--accent) 70%, white 10%) !important;
       }
 
-      /* Keyboard focus ring (visible on Tab, not on pointer). */
-      #screean-mirror > div:focus-visible {
+      /* Keyboard focus ring — native :focus-visible on real buttons. */
+      #content-host :focus-visible {
         outline: 2px solid rgb(130, 160, 255);
         outline-offset: 3px;
       }
-      #screean-mirror > div:focus:not(:focus-visible) { outline: none; }
 
       .hud {
         position: fixed; top: 16px; left: 16px; z-index: 50;
@@ -104,39 +127,7 @@
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: 11px;
         color: rgba(220, 220, 240, 0.85);
-        /* HUD rows are informational; the toggle row turns pointer-events
-           back on for the one interactive control inside. */
         pointer-events: none; user-select: none;
-      }
-      .hud .toggle { pointer-events: auto; cursor: pointer; }
-      .hud .toggle input {
-        appearance: none;
-        width: 14px; height: 14px;
-        border-radius: 3px;
-        border: 1px solid rgba(180, 180, 220, 0.35);
-        background: rgba(12, 10, 24, 0.5);
-        cursor: pointer;
-        margin: 0;
-        display: inline-block;
-        vertical-align: middle;
-        position: relative;
-      }
-      .hud .toggle input:checked {
-        background: rgb(130, 160, 255);
-        border-color: rgb(130, 160, 255);
-      }
-      .hud .toggle input:checked::after {
-        content: '';
-        position: absolute;
-        left: 4px; top: 1px;
-        width: 4px; height: 8px;
-        border: solid rgb(12, 10, 24);
-        border-width: 0 2px 2px 0;
-        transform: rotate(45deg);
-      }
-      .hud .toggle label {
-        color: rgba(220, 220, 240, 0.85); margin-left: 6px;
-        vertical-align: middle; cursor: pointer;
       }
       .hud h4 {
         margin: 0 0 6px 0; font-size: 9px;
@@ -167,18 +158,14 @@
   <body>
     <div class="world-behind" aria-hidden="true"></div>
     <canvas id="portal"></canvas>
-    <div id="mirror-host"></div>
+    <div id="content-host"></div>
     <div class="hud" id="hud" aria-live="polite">
       <h4>route</h4>
       <div class="row"><span class="key">at:</span> <span class="val" id="hud-route">—</span></div>
       <div class="row"><span class="key">visits:</span> <span class="val" id="hud-count">0</span></div>
-      <div class="row toggle">
-        <input type="checkbox" id="toggle-pointer" checked />
-        <label for="toggle-pointer">pointer pull</label>
-      </div>
     </div>
     <div class="hint">
-      <kbd>Tab</kbd> / click to navigate · the particles morph
+      <kbd>Tab</kbd> / click to navigate · the view swaps through particles
     </div>
     <script type="module" src="/src/demos/routing/main.ts"></script>
   </body>

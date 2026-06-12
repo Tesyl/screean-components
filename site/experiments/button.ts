@@ -1,56 +1,122 @@
-// button experiment — proves the promoted component layer works end-to-end:
+// button experiment — Pattern A (DOM-first) component event story.
 //
-//   • `button({ label, onClick, onPointerEnter, onPointerLeave, onPointerDown,
-//     onPointerUp })` builds a SceneNode subtree (rounded-rect chrome + text)
-//     tagged as a Component.
-//   • `createPointerTracker(scene)` consumes pointer events and fires the
-//     button's handlers at the right moments — one onPointerEnter per
-//     transition into the hit region, etc.
-//   • `routePointerEvent(scene, 'click', ...)` dispatches discrete clicks.
+// What this proves now: the library's `headlessButton` is a REAL <button>.
+// The event story is the NATIVE one — pointerenter / pointerleave /
+// pointerdown / pointerup / click fire straight off the element, hover and
+// press feedback are real CSS (`:hover` / `:active` rules in a tiny injected
+// stylesheet), and focus + Enter/Space activation come from the browser for
+// free. Activation runs business `onClick` first, then round-trips the
+// element through the shared transition core (`screen.dissolve(el)`):
+// rasterize-as-painted → burst → reform.
 //
-// Visual feedback: each handler swaps the live particle palette by hue so
-// the button's matter visibly changes color on hover, press, and click.
-// Side panel shows the tracker's hover/press state and a click counter.
+// Contrast with the git-history version of this file (Pattern B): a screean
+// `button()` SceneNode (rect + text SDFs), a `createPointerTracker(scene)`
+// that re-derived hover/press by hit-testing routed canvas coordinates, a
+// `routePointerEvent` dispatch for clicks, and a live particle pool that
+// recolored per state because particles WERE the button. Here the particles
+// only exist for the transition; state feedback is the styling layer's job.
+//
+// Three variants share one stylesheet to make the headless split legible:
+// structure + behavior come from `headlessButton`, the look (including
+// hover/press) is swappable CSS via `unstyled` + `className`. Each variant
+// sets its own `--screean-particle*` tokens, so each cloud bursts in the
+// variant's own palette — resolveParticlePalette reads them off the real
+// element's computed cascade at rasterize time.
 
-import { THEMES, DEFAULT_THEME } from '../themes';
-import { renderNav, renderFooter } from '../layout';
-import { Stage, makeColor } from '../embed';
-import type { Palette } from '../themes';
-import { scene, camera } from '@tesyl/screean';
-import { spawn } from '@tesyl/screean';
-import { TRANSPARENT } from '@tesyl/screean';
-// Site code consumes components through the package barrel, same as any
-// external consumer would. Keeps the subdivision (factories/, dom/, routing/)
-// internal to the components package.
 import {
-  button,
-  createPointerTracker,
-  routePointerEvent,
-  type Component,
+  createScreenController,
+  headlessButton,
+  applyStyles,
+  type ElementComponent,
 } from '../../src/components';
-import { attachFullscreenButton } from '../lib/ui/fullscreen';
 
-// State-keyed palettes. Hue rotates so hover/press/click read as real
-// "different states" rather than tonal jitter. Lit + sat held constant for
-// coherence.
-const PALETTES: Record<'idle' | 'hover' | 'press' | 'flash', Palette> = {
-  idle:  { hueCenter:  70, hueRange: 12, sat: 0.95, lit: 0.58 }, // chartreuse
-  hover: { hueCenter: 310, hueRange: 18, sat: 0.95, lit: 0.62 }, // hot pink
-  press: { hueCenter: 200, hueRange: 18, sat: 0.95, lit: 0.62 }, // electric blue
-  flash: { hueCenter:   0, hueRange: 14, sat: 0.95, lit: 0.66 }, // hot red
+import { renderNav, renderFooter } from '../layout';
+import { THEMES, DEFAULT_THEME } from '../themes';
+
+const THEME = THEMES[DEFAULT_THEME];
+const TOKENS = THEME.tokens;
+
+// The dissolve theater paints above everything; keep it clear of nav (z 10s).
+const OVERLAY_Z_INDEX = '60';
+
+const VARIANT_NAMES = ['primary', 'outline', 'quiet'] as const;
+type VariantName = (typeof VARIANT_NAMES)[number];
+
+const VARIANT_LABELS: Record<VariantName, string> = {
+  primary: 'TAP ME',
+  outline: 'OUTLINE',
+  quiet: 'QUIET',
 };
 
-// Recolor the live particles toward `palette`. Used inside button handlers.
-const recolor = (stage: Stage, palette: Palette): void => {
-  stage.setPalette(palette);
-  const c = makeColor(palette);
-  for (const p of stage.world.particles) {
-    if (p.life > 0) p.color = c();
-  }
+// Real CSS for the three variants — hover and press are genuine `:hover` /
+// `:active` pseudo-class rules, not routed hit-tests. foreignObject-safe:
+// no url(), no webfonts beyond the theme stack. (The rasterizer embeds
+// document stylesheets into the serialized SVG, so class-based skins
+// rasterize fine; pseudo-CLASS states like :hover are not part of the
+// serialized snapshot — the captured silhouette is the base paint.)
+const VARIANT_CSS = `
+.xp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  padding: 0 28px;
+  font: 700 16px ${TOKENS.fontMono};
+  letter-spacing: 0.06em;
+  border-radius: ${TOKENS.radius};
+  cursor: pointer;
+  outline-offset: 2px;
+  transition: transform 80ms ease, background 120ms ease, color 120ms ease;
+}
+.xp-btn:active { transform: translateY(2px); }
+
+.xp-btn--primary {
+  --screean-particle: ${TOKENS.accent};
+  --screean-particle-2: ${TOKENS.fg};
+  background: ${TOKENS.accent};
+  color: ${TOKENS.fg};
+  border: 1px solid ${TOKENS.border};
+  box-shadow: ${TOKENS.shadow};
+}
+.xp-btn--primary:hover { background: ${TOKENS.fg}; color: ${TOKENS.accent}; }
+
+.xp-btn--outline {
+  --screean-particle: ${TOKENS.fg};
+  --screean-particle-2: ${TOKENS.muted};
+  background: ${TOKENS.surface};
+  color: ${TOKENS.fg};
+  border: 1px solid ${TOKENS.border};
+}
+.xp-btn--outline:hover { background: ${TOKENS.subtle}; }
+
+.xp-btn--quiet {
+  --screean-particle: ${TOKENS.muted};
+  --screean-particle-2: ${TOKENS.fg};
+  background: transparent;
+  color: ${TOKENS.muted};
+  border: 1px solid transparent;
+}
+.xp-btn--quiet:hover { color: ${TOKENS.fg}; border-color: ${TOKENS.border}; }
+`;
+
+const HOST_SKIN: Partial<CSSStyleDeclaration> = {
+  position: 'relative',
+  width: '720px',
+  maxWidth: '100%',
+  minHeight: '420px',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '28px',
+  padding: '32px',
+  boxSizing: 'border-box',
+  background: TOKENS.bg,
+  fontFamily: TOKENS.fontMono,
+  color: TOKENS.fg,
 };
 
 export const mount = (root: HTMLElement): (() => void) => {
-  const theme = THEMES[DEFAULT_THEME];
   root.innerHTML = '';
 
   const worldBehind = document.createElement('div');
@@ -64,17 +130,17 @@ export const mount = (root: HTMLElement): (() => void) => {
   head.className = 'doc-head';
   head.innerHTML = `
     <span class="doc-eyebrow">EXPERIMENT · 01</span>
-    <h1>button</h1>
-    <p>The screean button() factory composes a rect + text into a single Component. Pointer events route through a stateful tracker that fires hover, press, and release at the right moments — same semantics as native HTML.</p>
+    <h1>button — native events, rasterized activation</h1>
+    <p>The button experiment rebuilt on Pattern A. <code>headlessButton</code> returns a real <code>&lt;button&gt;</code>: hover and press are genuine CSS <code>:hover</code>/<code>:active</code> rules, pointer events fire natively off the element (no canvas hit-test routing), and keyboard activation is the browser's own. Clicking runs the handler first, then <code>screen.dissolve(el)</code> rasterizes the element exactly as painted and round-trips it through the shared transition core. Three skins on one factory show the headless split — each variant's cloud inherits its own <code>--screean-particle</code> tokens.</p>
   `;
   root.appendChild(head);
 
-  // Layout: canvas + state side-panel.
   const stage = document.createElement('section');
   stage.className = 'experiment-stage';
+  stage.setAttribute('data-experiment', 'button');
   stage.innerHTML = `
     <div class="experiment-canvas-wrap surface-card">
-      <canvas class="experiment-canvas" aria-hidden="true"></canvas>
+      <div data-role="content-host"></div>
     </div>
     <aside class="experiment-aside surface-card">
       <header class="experiment-aside-head">
@@ -87,174 +153,139 @@ export const mount = (root: HTMLElement): (() => void) => {
         <div class="state-row"><dt>LAST EVENT</dt><dd data-key="event">—</dd></div>
       </dl>
       <footer class="experiment-aside-foot">
-        <code>button({ label, onClick, onPointerEnter, … })</code>
+        <code>headlessButton({ screen, label, onClick })</code>
       </footer>
     </aside>
   `;
   root.appendChild(stage);
 
-  const canvas = stage.querySelector<HTMLCanvasElement>('.experiment-canvas')!;
-  const wrap = stage.querySelector<HTMLDivElement>('.experiment-canvas-wrap')!;
-  const INITIAL_W = 720;
-  const INITIAL_H = 420;
-  const W = INITIAL_W;
-  const H = INITIAL_H;
-  canvas.style.width = `${W}px`;
-  canvas.style.height = `${H}px`;
+  const host = stage.querySelector<HTMLDivElement>('[data-role="content-host"]')!;
+  applyStyles(host, HOST_SKIN);
+
+  // Variant skins — a real stylesheet, in the document, like any styling
+  // layer would be. Removed on teardown.
+  const styleEl = document.createElement('style');
+  styleEl.textContent = VARIANT_CSS;
+  document.head.appendChild(styleEl);
 
   const stateEls = {
     hovered: stage.querySelector<HTMLElement>('[data-key="hovered"]')!,
     pressed: stage.querySelector<HTMLElement>('[data-key="pressed"]')!,
-    clicks:  stage.querySelector<HTMLElement>('[data-key="clicks"]')!,
-    event:   stage.querySelector<HTMLElement>('[data-key="event"]')!,
+    clicks: stage.querySelector<HTMLElement>('[data-key="clicks"]')!,
+    event: stage.querySelector<HTMLElement>('[data-key="event"]')!,
   };
   let clicks = 0;
-  const setEvent = (kind: string, target: Component | null) => {
-    stateEls.event.textContent = `${kind.toUpperCase()}${target ? ' / ' + (target._component.ariaLabel ?? '?') : ''}`;
-  };
-  const setHovered = (c: Component | null) => {
-    stateEls.hovered.textContent = c ? (c._component.ariaLabel ?? '?') : '—';
-  };
-  const setPressed = (c: Component | null) => {
-    stateEls.pressed.textContent = c ? (c._component.ariaLabel ?? '?') : '—';
+  const setEvent = (kind: string, variant: VariantName): void => {
+    stateEls.event.textContent = `${kind.toUpperCase()} / ${variant.toUpperCase()}`;
   };
 
-  // Build the screean canvas via Stage.
-  const sg = new Stage({
-    canvas,
-    width: W,
-    height: H,
-    feel: theme.feel,
-    feelOverrides: theme.feelOverrides,
-    palette: PALETTES.idle,
-    particleCount: 2200,
-    spawnFrom: 'edge',
-    spawnSpeed: 280,
-    portal: false,
-    particleSize: 1.0,
-    trailAlpha: 0.18,
+  // ── Overlay canvas — the dissolve theater ─────────────────────────────────
+  // The core spawns particles at the dissolving element's VIEWPORT rect
+  // (default originOf = getBoundingClientRect), so the canvas must be
+  // viewport-fixed (same finding as the controls experiment). A
+  // container-local canvas would need `originOf` to remap into local coords.
+  const overlay = document.createElement('canvas');
+  overlay.setAttribute('aria-hidden', 'true');
+  applyStyles(overlay, {
+    position: 'fixed',
+    inset: '0',
+    width: '100%',
+    height: '100%',
+    display: 'block',
+    zIndex: OVERLAY_Z_INDEX,
+    pointerEvents: 'none',
+  });
+  stage.appendChild(overlay);
+
+  const screen = createScreenController({ canvas: overlay, feel: THEME.feel });
+
+  // ── Content: title + the three variants ───────────────────────────────────
+  const title = document.createElement('h2');
+  title.textContent = 'One factory, three skins';
+  applyStyles(title, {
+    margin: '0',
+    font: `${THEME.fontWeight} 24px ${TOKENS.fontHead}`,
+    textTransform: TOKENS.headTransform,
+    letterSpacing: TOKENS.headTracking,
   });
 
-  // Build the button. We don't use Stage.setScene here because we need to
-  // construct the scene with a `camera` root so the pointer tracker can map
-  // screen → world. Stage.setScene wraps content in a camera already; we
-  // do it manually so we can keep the button as a top-level child.
-  const btn = button({
-    label: 'TAP ME',
-    width: 280,
-    height: 96,
-    radius: 16,
-    font: '700 28px ui-monospace, "SF Mono", Menlo, monospace',
-    onClick: (e) => {
-      clicks += 1;
-      stateEls.clicks.textContent = String(clicks);
-      setEvent('click', e.component);
-      // Brief "flash" recolor that decays back to idle/hover after 320ms.
-      recolor(sg, PALETTES.flash);
-      setTimeout(() => {
-        recolor(sg, tracker.hovered ? PALETTES.hover : PALETTES.idle);
-      }, 320);
-    },
-    onPointerEnter: (e) => {
-      setHovered(e.component);
-      setEvent('enter', e.component);
-      if (!tracker.pressed) recolor(sg, PALETTES.hover);
-    },
-    onPointerLeave: (e) => {
-      setHovered(null);
-      setEvent('leave', e.component);
-      if (!tracker.pressed) recolor(sg, PALETTES.idle);
-    },
-    onPointerDown: (e) => {
-      setPressed(e.component);
-      setEvent('down', e.component);
-      recolor(sg, PALETTES.press);
-    },
-    onPointerUp: (e) => {
-      setPressed(null);
-      setEvent('up', e.component);
-      recolor(sg, tracker.hovered ? PALETTES.hover : PALETTES.idle);
-    },
+  const blurb = document.createElement('p');
+  blurb.textContent =
+    'hover + press are real CSS · click dissolves through the core · Tab + Enter works';
+  applyStyles(blurb, {
+    margin: '0',
+    font: `500 13px ${TOKENS.fontMono}`,
+    color: TOKENS.muted,
   });
 
-  // Compose a scene with a camera root + the button centered.
-  const sceneObj = scene(
-    { particleCount: 2200 },
-    camera({ viewport: { w: W, h: H }, pan: [W / 2 - 140, H / 2 - 48] }, btn),
-  );
-  // Spawn particles + bind to the button.
-  sg.world.particles.length = 0;
-  sg.world.addParticles(spawn({
-    n: 2200,
-    origin: { kind: 'edge', width: W, height: H },
-    color: TRANSPARENT,
-    speed: 280,
-    toward: { x: W / 2, y: H / 2 },
-  }));
-  sceneObj.tick(0);
-  sceneObj.bindAll(sg.world.particles, { kind: 'bounds-area' });
-  recolor(sg, PALETTES.idle);
-
-  // Patch Stage to use this scene by stashing it via a private field — but
-  // since we built our own, we drive ticks from the same RAF Stage uses
-  // (the shared ticker). Easiest path: replace Stage's currentScene so the
-  // ticker steps it. We can't reach into private state, so instead we drive
-  // the scene's tick from an additional RAF. Cheap.
-  let extraRaf = 0;
-  let lastT = performance.now();
-  const driveScene = (now: number) => {
-    extraRaf = requestAnimationFrame(driveScene);
-    const dt = Math.min(0.05, (now - lastT) / 1000);
-    lastT = now;
-    sceneObj.tick(dt);
-  };
-  extraRaf = requestAnimationFrame(driveScene);
-
-  // The Stage ticker already calls sg.world.tick + renderer.draw. The
-  // scene is what owns layout + bindings; we tick it independently so the
-  // button stays bound at its current location even if the layout changes.
-  // Note: we do NOT call sg.setScene because that would replace our
-  // hand-rolled scene with a Stage-built one.
-
-  // Pointer tracker — attaches hover/press semantics on top of the scene.
-  const tracker = createPointerTracker(sceneObj);
-
-  const handlePointer = (e: PointerEvent, kind: 'move' | 'down' | 'up' | 'click') => {
-    const r = canvas.getBoundingClientRect();
-    const sx = e.clientX - r.left;
-    const sy = e.clientY - r.top;
-    if (!sceneObj.camera) return;
-    const world = sceneObj.camera.toWorld([sx, sy]);
-    if (kind === 'move') tracker.onPointerMove(world, [sx, sy]);
-    else if (kind === 'down') tracker.onPointerDown(world, [sx, sy]);
-    else if (kind === 'up') tracker.onPointerUp(world, [sx, sy]);
-    else if (kind === 'click') routePointerEvent(sceneObj, 'click', world, [sx, sy]);
-  };
-
-  canvas.addEventListener('pointermove',  (e) => handlePointer(e, 'move'));
-  canvas.addEventListener('pointerdown',  (e) => handlePointer(e, 'down'));
-  canvas.addEventListener('pointerup',    (e) => handlePointer(e, 'up'));
-  canvas.addEventListener('click',        (e) => handlePointer(e, 'click'));
-  canvas.addEventListener('pointerleave', () => tracker.onPointerLeaveCanvas());
-
-  // Fullscreen toggle. The scene's camera pan was baked in at creation, so
-  // the button stays at its original world-space position; the canvas just
-  // grows around it. Acceptable trade-off for v1 — the dissolve/recolor
-  // visual still reads. Re-centering would require rebuilding the scene.
-  const fs = attachFullscreenButton({
-    wrap,
-    restoreWidth: INITIAL_W,
-    restoreHeight: INITIAL_H,
-    onResize: (w, h) => {
-      sg.resize(w, h);
-    },
+  const row = document.createElement('div');
+  applyStyles(row, {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '20px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   });
+
+  // Native event wiring per variant: these listeners feed ONLY the state
+  // panel — the interaction semantics themselves are the element's own.
+  const listenerCleanups: Array<() => void> = [];
+  const wireStatePanel = (el: HTMLElement, variant: VariantName): void => {
+    const on = <K extends keyof HTMLElementEventMap>(
+      type: K,
+      handler: () => void,
+    ): void => {
+      el.addEventListener(type, handler);
+      listenerCleanups.push(() => el.removeEventListener(type, handler));
+    };
+    on('pointerenter', () => {
+      stateEls.hovered.textContent = variant.toUpperCase();
+      setEvent('enter', variant);
+    });
+    on('pointerleave', () => {
+      stateEls.hovered.textContent = '—';
+      setEvent('leave', variant);
+    });
+    on('pointerdown', () => {
+      stateEls.pressed.textContent = variant.toUpperCase();
+      setEvent('down', variant);
+    });
+    on('pointerup', () => {
+      stateEls.pressed.textContent = '—';
+      setEvent('up', variant);
+    });
+  };
+
+  const buttons: ElementComponent<HTMLButtonElement, 'button'>[] =
+    VARIANT_NAMES.map((variant) => {
+      const component = headlessButton({
+        screen,
+        label: VARIANT_LABELS[variant],
+        // Bring-your-own styling layer: skip the default inline skin so the
+        // injected stylesheet (including :hover/:active) owns the look.
+        unstyled: true,
+        className: `xp-btn xp-btn--${variant}`,
+        onClick: () => {
+          clicks += 1;
+          stateEls.clicks.textContent = String(clicks);
+          setEvent('click', variant);
+        },
+      });
+      wireStatePanel(component.el, variant);
+      return component;
+    });
+
+  row.append(...buttons.map((b) => b.el));
+  host.append(title, blurb, row);
 
   root.appendChild(renderFooter());
 
+  // ── Teardown ──────────────────────────────────────────────────────────────
   return () => {
-    if (extraRaf) cancelAnimationFrame(extraRaf);
-    fs.dispose();
-    sg.dispose();
+    screen.dispose();
+    for (const cleanup of listenerCleanups) cleanup();
+    for (const b of buttons) b.dispose();
+    overlay.remove();
+    styleEl.remove();
   };
 };

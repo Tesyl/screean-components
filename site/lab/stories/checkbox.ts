@@ -1,40 +1,67 @@
-// Checkbox story for the lab. Tunable opts: checked state, dimensions,
-// corner radius. onChange wired to the lab's activate callback.
+// Checkbox story — the flip-then-dissolve contract.
 //
-// Note: the checked state isn't really "tunable" the way label is — it
-// flips on each click. The default value is the initial state; clicking
-// then alternates it via the onChange / activate path.
+// Pattern A: a real <button role="checkbox" aria-checked>. Activation
+// flips state, repaints the real element, fires onChange, THEN dissolves —
+// so the rasterizer always captures the settled, post-change visual (the
+// mark you just made is the one that bursts). The previous version (git
+// history) drew the box + mark from SDF primitives and rebuilt per knob.
 
-import { checkbox, type Handler } from '../../../src/components';
+import { headlessCheckbox } from '../../../src/components';
 import type { LabStory } from '../types';
+import { storyCaption, storyColumn, storyReadout, storyRow, teardownOf } from '../kit';
 
 export const checkboxStory: LabStory = {
   name: 'checkbox',
   title: 'Checkbox',
-  blurb: 'Boolean state. Square chrome with a centered mark when checked. onChange fires the dissolve cycle.',
-  defaultProps: {
-    checked: false,
-    size: 36,
-    radius: 4,
+  blurb:
+    'Boolean state. Flip → repaint → dissolve: the cycle captures the NEW state’s pixels.',
+  mount: (host, screen) => {
+    const col = storyColumn();
+    const log = storyReadout('particles: off · trails: on');
+
+    const state = { particles: false, trails: true };
+    const echo = (): void =>
+      log.set(
+        `particles: ${state.particles ? 'on' : 'off'} · trails: ${state.trails ? 'on' : 'off'}`,
+      );
+
+    const particles = headlessCheckbox({
+      screen,
+      label: 'Enable particles',
+      checked: state.particles,
+      onChange: (checked) => {
+        state.particles = checked;
+        echo();
+      },
+    });
+    const trails = headlessCheckbox({
+      screen,
+      label: 'Enable trails',
+      checked: state.trails,
+      onChange: (checked) => {
+        state.trails = checked;
+        echo();
+      },
+    });
+
+    col.append(
+      storyCaption(
+        'Click or Space to flip. Watch the order: the mark appears (state flipped, onChange fired), then that settled visual dissolves and re-forms.',
+      ),
+      storyRow([particles.el, trails.el]),
+      log.el,
+    );
+    host.appendChild(col);
+
+    return teardownOf(col, particles, trails);
   },
-  propDefs: [
-    { kind: 'boolean', key: 'checked', label: 'checked (initial)' },
-    { kind: 'number',  key: 'size',    label: 'size',    min: 16, max: 80, step: 2 },
-    { kind: 'number',  key: 'radius',  label: 'radius',  min: 0,  max: 20, step: 1 },
-  ],
-  build: (props, onActivate: Handler) =>
-    checkbox({
-      checked: Boolean(props.checked),
-      width: Number(props.size),
-      height: Number(props.size),
-      radius: Number(props.radius),
-      onChange: onActivate,
-    }),
-  codeTemplate: `checkbox({
-  checked: {{checked}},
-  width: {{size}},
-  height: {{size}},
-  radius: {{radius}},
-  onChange: (e) => dissolve.trigger(e.component),
-})`,
+  code: `const cb = headlessCheckbox({
+  screen,
+  label: 'Enable particles',
+  checked: false,
+  onChange: (checked) => apply(checked),  // fires before the dissolve
+  // dissolveOnChange: true               // default — captures the NEW state
+});
+host.appendChild(cb.el);
+cb.setChecked(true);                      // programmatic sync — never dissolves`,
 };

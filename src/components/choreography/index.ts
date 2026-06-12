@@ -75,7 +75,9 @@ export { animate, type AnimateOpts } from './effects/animate';
 // (perlinGlitch effect retired in Phase 4 — perlin is now a regular force
 //  on the world. Use animate({param: 'perlinStrength', ...}) for ramps.)
 // Compound recipes (built on top of atoms via collapsePipelineToEffect).
-export { dissolve, type DissolveOpts } from './effects/dissolve';
+// (`dissolve` deleted — component dissolves are the transition core's job:
+//  src/components/transition, DECISION point 4. The atoms it composed —
+//  kick, wait, captureStarts, easeToTargets, pinToTargets — remain.)
 export { popTo3D, type PopTo3DEffectOpts } from './effects/popTo3D';
 // Visual recipes (depth-as-illusion, distinct from physical depth).
 // Composes scale + fade — works on every backend, no z-axis required.

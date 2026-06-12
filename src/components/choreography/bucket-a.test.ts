@@ -25,7 +25,7 @@ import {
 } from '../../testing/offscreenCanvasStub';
 import { __resetComponentIds } from '../component';
 import { button } from '../factories/button';
-import { slider } from '../factories/slider';
+import { testSlider } from './_testComponents';
 import { createChoreoRunner } from './runner';
 import { groupOfComponent } from './group';
 import { pipe } from './pipeline';
@@ -168,7 +168,7 @@ describe('whileFocused (A2)', () => {
 
 describe('narrow caching (A3)', () => {
   it('resolves the subpart once per pipeline run, not per tick', () => {
-    const sli = slider({ value: 0.5, onChange: () => {} });
+    const sli = testSlider();
     const { s, w } = setup(sli as unknown as ReturnType<typeof button>);
     const runner = createChoreoRunner({
       scene: s, world: w, particles: w.particles,
@@ -226,7 +226,7 @@ describe('narrow caching (A3)', () => {
 
 describe('whileDragging (P14)', () => {
   it('flips on slider pointerdown and back on pointerup', () => {
-    const sli = slider({ value: 0.5, onChange: () => {} });
+    const sli = testSlider();
     const { s, w } = setup(sli as unknown as ReturnType<typeof button>);
     const runner = createChoreoRunner({
       scene: s, world: w, particles: w.particles,
