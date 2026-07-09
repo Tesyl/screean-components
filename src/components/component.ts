@@ -33,6 +33,12 @@ export const __resetComponentIds = (): void => {
 // because silently overwriting handlers is a bug magnet. If you need to update
 // handlers after construction, mutate `node._component.handlers` — but that's
 // intentionally awkward to discourage run-time reshuffling.
+/**
+ * @deprecated Legacy Pattern B core (tags a SceneNode as a component for the
+ * SDF + DOM-mirror render path). The standard is the DOM-first `headless/`
+ * factories over the engine's transition core. Retained for
+ * `src/demos/legacy-demo`.
+ */
 export const component = (
   node: SceneNode,
   opts: ComponentOpts = {},

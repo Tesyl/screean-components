@@ -7,12 +7,13 @@
 
 import type { ElementComponent, HeadlessBaseOpts } from './types';
 import type { Prettify, ScreenController } from '../transition';
-import { applyBaseOpts, applyStyles, toElementComponent } from './element';
+import { applyBaseOpts, applyStyles, toElementComponent, transitionGuard } from './element';
 import { wireCheckable } from './checkable';
 import {
   BUTTON_FOREGROUND,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE_PX,
+  RADIO_PARTICLE_COUNT,
 } from './constant';
 
 export type HeadlessRadioOpts = Prettify<
@@ -85,9 +86,13 @@ export const headlessRadio = (opts: HeadlessRadioOpts): RadioComponent => {
   }
   applyBaseOpts(el, { ...opts, ariaLabel: opts.ariaLabel ?? opts.label });
 
+  const overrides = { particleCount: opts.particleCount ?? RADIO_PARTICLE_COUNT };
+  const guard = transitionGuard();
   const state = wireCheckable({
     screen: opts.screen,
     el,
+    guard,
+    overrides,
     ariaAttribute: 'aria-checked',
     initial: opts.checked ?? false,
     disabled: opts.disabled,
@@ -104,6 +109,8 @@ export const headlessRadio = (opts: HeadlessRadioOpts): RadioComponent => {
     el,
     role: 'radio',
     screen: opts.screen,
+    guard,
+    overrides,
     onDispose: state.removeListeners,
   });
   return {

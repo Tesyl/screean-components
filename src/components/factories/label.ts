@@ -35,6 +35,11 @@ const defaultFontFor = (role: 'heading' | 'text'): string =>
     ? '400 32px system-ui, -apple-system, "Segoe UI", sans-serif'
     : '400 16px system-ui, -apple-system, "Segoe UI", sans-serif';
 
+/**
+ * @deprecated Legacy Pattern B (SDF scene-graph + DOM mirror). Use
+ * `headlessLabel` from `src/components/headless`. Retained only for
+ * `src/demos/legacy-demo`.
+ */
 export const label = (opts: LabelOpts): Component => {
   const role = opts.ariaRole ?? 'text';
   const font = opts.font ?? defaultFontFor(role);

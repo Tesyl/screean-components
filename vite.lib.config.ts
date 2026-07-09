@@ -34,9 +34,12 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     target: 'esnext',
-    // Lib mode inlines assets as base64 by default — that would bake the
-    // 882 KB glTF into the JS chunk for every consumer (even ones that pass
-    // their own `logoUrl`). Force it to emit as a separate dist asset.
+    // Keep small assets from base64-inlining. NOTE: vite library mode still
+    // inlines the default 882 KB glTF (loaded lazily via `?url` in
+    // sixShowcaseInk.ts) into its own async chunk as base64 — `assetsInlineLimit`
+    // does not override lib-mode asset inlining. It's lazy (out of the eager
+    // path) and consumers that pass `logoUrl` never fetch it; true binary
+    // emission is a publish follow-up (needs an emitFile rollup plugin).
     assetsInlineLimit: 0,
   },
 })

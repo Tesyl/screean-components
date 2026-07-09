@@ -1,7 +1,7 @@
 # Rendering a dissolving UI component — the canonical guide
 
 **Status:** Current · 2026-06-11
-**Companion:** [`DECISION-component-rendering-pattern.md`](./DECISION-component-rendering-pattern.md) (the decision) · [`ui-rendering-pattern-audit.md`](./ui-rendering-pattern-audit.md) (the inventory that led to it)
+**Companion:** [`ARCHITECTURE-components.md`](./ARCHITECTURE-components.md) (the implemented architecture — module map, flows, invariants) · [`DECISION-component-rendering-pattern.md`](./DECISION-component-rendering-pattern.md) (the decision) · [`ui-rendering-pattern-audit.md`](./ui-rendering-pattern-audit.md) (the inventory that led to it)
 
 This is the post-migration "how to" the audit's Step 4 calls for. Pattern A is
 now implemented: **the real DOM element is the single source of truth; the

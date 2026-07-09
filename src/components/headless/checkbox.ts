@@ -6,10 +6,11 @@
 
 import type { ElementComponent, HeadlessBaseOpts } from './types';
 import type { Prettify } from '../transition';
-import { applyBaseOpts, applyStyles, toElementComponent } from './element';
+import { applyBaseOpts, applyStyles, toElementComponent, transitionGuard } from './element';
 import { wireCheckable } from './checkable';
 import {
   BUTTON_FOREGROUND,
+  CHECKBOX_PARTICLE_COUNT,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE_PX,
 } from './constant';
@@ -76,9 +77,13 @@ export const headlessCheckbox = (
   }
   applyBaseOpts(el, { ...opts, ariaLabel: opts.ariaLabel ?? opts.label });
 
+  const overrides = { particleCount: opts.particleCount ?? CHECKBOX_PARTICLE_COUNT };
+  const guard = transitionGuard();
   const state = wireCheckable({
     screen: opts.screen,
     el,
+    guard,
+    overrides,
     ariaAttribute: 'aria-checked',
     initial: opts.checked ?? false,
     disabled: opts.disabled,
@@ -98,6 +103,8 @@ export const headlessCheckbox = (
     el,
     role: 'checkbox',
     screen: opts.screen,
+    guard,
+    overrides,
     onDispose: state.removeListeners,
   });
   return { ...base, checked: state.checked, setChecked: state.setChecked };

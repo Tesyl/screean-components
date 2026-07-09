@@ -4,7 +4,7 @@
 
 import type { AriaRole } from '../types';
 import { RENDER_STRATEGY_BY_ROLE } from '../types';
-import type { ScreenController } from '../transition';
+import type { ScreenController, TransitionTuning } from '../transition';
 import type { ElementComponent, HeadlessBaseOpts } from './types';
 import { DISABLED_OPACITY } from './constant';
 
@@ -38,8 +38,40 @@ export const applyBaseOpts = (
   if (opts.style) applyStyles(el, opts.style);
 };
 
-// Assemble the ElementComponent handle every factory returns. `dispose`
-// composes the factory's own teardown (listener removal) with detach.
+// Per-element transition guard. A component is "busy" only while ITS OWN
+// dissolve/swap cycle is in flight — NOT while some other element is mid-
+// transition. This is the difference between "you can't re-click this
+// dissolving button" (correct) and "you can't click anything while any
+// button is dissolving" (the bug the controller's global phase() caused).
+//
+// `run` brackets an async transition: busy for its whole duration, including
+// the time it spends queued behind another element's cycle (the controller
+// serializes), and cleared even if the transition rejects.
+export type TransitionGuard = {
+  busy: () => boolean;
+  run: (transition: () => Promise<void>) => Promise<void>;
+};
+
+export const transitionGuard = (): TransitionGuard => {
+  let busy = false;
+  return {
+    busy: () => busy,
+    run: async (transition) => {
+      busy = true;
+      try {
+        await transition();
+      } finally {
+        busy = false;
+      }
+    },
+  };
+};
+
+// Assemble the ElementComponent handle every factory returns. `dissolve`/
+// `swapTo` route through the per-element `guard` so the component's own
+// `isTransitioning()` reflects them (whether triggered by a click handler or
+// called programmatically). `dispose` composes the factory's teardown with
+// detach. Pass the SAME guard the factory's interaction handlers gate on.
 export const toElementComponent = <
   E extends HTMLElement,
   R extends AriaRole,
@@ -47,15 +79,21 @@ export const toElementComponent = <
   el: E;
   role: R;
   screen: ScreenController;
+  guard?: TransitionGuard;
+  // Per-component transition tuning (e.g. its resolved particleCount) applied
+  // to every dissolve/swap this handle triggers.
+  overrides?: Partial<TransitionTuning>;
   onDispose?: () => void;
 }): ElementComponent<E, R> => {
-  const { el, role, screen, onDispose } = args;
+  const { el, role, screen, overrides, onDispose } = args;
+  const guard = args.guard ?? transitionGuard();
   return {
     el,
     role,
     strategy: RENDER_STRATEGY_BY_ROLE[role],
-    dissolve: () => screen.dissolve(el),
-    swapTo: (into) => screen.swap(el, into.el),
+    isTransitioning: guard.busy,
+    dissolve: () => guard.run(() => screen.dissolve(el, overrides)),
+    swapTo: (into) => guard.run(() => screen.swap(el, into.el, overrides)),
     dispose: () => {
       onDispose?.();
       el.remove();

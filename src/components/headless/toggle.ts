@@ -5,9 +5,9 @@
 
 import type { ElementComponent, HeadlessBaseOpts } from './types';
 import type { Prettify } from '../transition';
-import { applyBaseOpts, applyStyles, toElementComponent } from './element';
+import { applyBaseOpts, applyStyles, toElementComponent, transitionGuard } from './element';
 import { wireCheckable } from './checkable';
-import { BUTTON_FOREGROUND } from './constant';
+import { BUTTON_FOREGROUND, TOGGLE_PARTICLE_COUNT } from './constant';
 
 export type HeadlessToggleOpts = Prettify<
   HeadlessBaseOpts & {
@@ -72,9 +72,13 @@ export const headlessToggle = (opts: HeadlessToggleOpts): ToggleComponent => {
   }
   applyBaseOpts(el, opts);
 
+  const overrides = { particleCount: opts.particleCount ?? TOGGLE_PARTICLE_COUNT };
+  const guard = transitionGuard();
   const state = wireCheckable({
     screen: opts.screen,
     el,
+    guard,
+    overrides,
     ariaAttribute: 'aria-checked',
     initial: opts.checked ?? false,
     disabled: opts.disabled,
@@ -95,6 +99,8 @@ export const headlessToggle = (opts: HeadlessToggleOpts): ToggleComponent => {
     el,
     role: 'switch',
     screen: opts.screen,
+    guard,
+    overrides,
     onDispose: state.removeListeners,
   });
   return { ...base, checked: state.checked, setChecked: state.setChecked };

@@ -48,3 +48,25 @@ export const SLIDER_PAGE_STEPS = 10;
 
 // Disabled affordance (both factories).
 export const DISABLED_OPACITY = '0.5';
+
+// ─── Per-component particle counts ──────────────────────────────────────────
+//
+// How many particles each component's dissolve spawns, by default. Scaled to
+// the component's apparent silhouette area — a tiny toggle reads fine with far
+// fewer particles than a full card, and (since transitions are concurrent and
+// each adds its own slice to the shared pool) right-sizing these keeps the
+// total particle budget sane when several dissolve at once.
+//
+// Every factory takes a `particleCount` prop that overrides its default. The
+// engine's controller default (DEFAULT_PARTICLE_COUNT = 6000) applies only
+// when neither is set.
+export const BUTTON_PARTICLE_COUNT = 3000;
+export const CARD_PARTICLE_COUNT = 6000;
+export const LABEL_PARTICLE_COUNT = 2000;
+export const HEADING_PARTICLE_COUNT = 3500;
+export const CHECKBOX_PARTICLE_COUNT = 1500;
+export const TOGGLE_PARTICLE_COUNT = 1200;
+export const RADIO_PARTICLE_COUNT = 1500;
+export const SLIDER_PARTICLE_COUNT = 2200;
+export const TEXT_FIELD_PARTICLE_COUNT = 2600;
+export const IMAGE_PARTICLE_COUNT = 6000;

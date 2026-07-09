@@ -10,12 +10,13 @@
 
 import type { ElementComponent, HeadlessBaseOpts } from './types';
 import type { Prettify } from '../transition';
-import { applyBaseOpts, applyStyles, toElementComponent } from './element';
+import { applyBaseOpts, applyStyles, toElementComponent, transitionGuard } from './element';
 import {
   BUTTON_BORDER,
   BUTTON_FOREGROUND,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE_PX,
+  TEXT_FIELD_PARTICLE_COUNT,
 } from './constant';
 
 export type HeadlessTextFieldOpts = Prettify<
@@ -64,12 +65,15 @@ export const headlessTextField = (
   if (!opts.unstyled) applyStyles(el, FIELD_SKIN);
   applyBaseOpts(el, opts);
 
+  const overrides = { particleCount: opts.particleCount ?? TEXT_FIELD_PARTICLE_COUNT };
+  const guard = transitionGuard();
   const handleInput = (): void => opts.onInput?.(el.value);
   // `change` fires when the value settles (blur, or Enter in most browsers)
-  // — the discrete edge of a continuous interaction.
+  // — the discrete edge of a continuous interaction. Dissolve on commit
+  // unless THIS field is already mid-cycle (per-element, not global phase).
   const handleChange = (): void => {
     opts.onCommit?.(el.value);
-    if (dissolveOnCommit && screen.phase() === 'idle') void screen.dissolve(el);
+    if (dissolveOnCommit && !guard.busy()) void guard.run(() => screen.dissolve(el, overrides));
   };
   el.addEventListener('input', handleInput);
   el.addEventListener('change', handleChange);
@@ -78,6 +82,8 @@ export const headlessTextField = (
     el,
     role: 'textbox',
     screen,
+    guard,
+    overrides,
     onDispose: () => {
       el.removeEventListener('input', handleInput);
       el.removeEventListener('change', handleChange);

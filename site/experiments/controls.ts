@@ -189,17 +189,30 @@ const controlRow = (...children: HTMLElement[]): HTMLDivElement => {
   return row;
 };
 
-// Discrete-control activation: gate on idle, mutate state, re-render the
-// real element, THEN rasterize+dissolve — the captured silhouette is the
+// Per-element transition guard. A control blocks re-activating ITSELF while
+// its own cycle is in flight (it's particles then) — NOT while some other
+// control is dissolving, so one dissolved element never freezes the rest of
+// the panel. (The headless factories have this built in; these plain-DOM
+// stand-ins replicate it locally via a WeakSet keyed on the element.)
+const inFlight = new WeakSet<HTMLElement>();
+
+const guardedDissolve = (screen: ScreenController, el: HTMLElement): void => {
+  if (inFlight.has(el)) return;
+  inFlight.add(el);
+  void screen.dissolve(el).finally(() => inFlight.delete(el));
+};
+
+// Discrete-control activation: gate on THIS element, mutate state, re-render
+// the real element, THEN rasterize+dissolve — the captured silhouette is the
 // new state, so the cloud reforms onto what the user toggled to.
 const activateThenDissolve = (
   screen: ScreenController,
   el: HTMLElement,
   mutate: () => void,
 ): void => {
-  if (screen.phase() !== 'idle') return;
+  if (inFlight.has(el)) return;
   mutate();
-  void screen.dissolve(el);
+  guardedDissolve(screen, el);
 };
 
 // ─── Experiment ──────────────────────────────────────────────────────────────
@@ -324,8 +337,7 @@ export const mount = (root: HTMLElement): (() => void) => {
     render();
   };
   const onNameChange = (): void => {
-    if (screen.phase() !== 'idle') return;
-    void screen.dissolve(nameInput);
+    guardedDissolve(screen, nameInput);
   };
   nameInput.addEventListener('input', onNameInput);
   nameInput.addEventListener('change', onNameChange);

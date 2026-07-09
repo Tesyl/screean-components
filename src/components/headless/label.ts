@@ -11,6 +11,8 @@ import { applyBaseOpts, applyStyles, toElementComponent } from './element';
 import {
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE_PX,
+  HEADING_PARTICLE_COUNT,
+  LABEL_PARTICLE_COUNT,
 } from './constant';
 
 export type HeadlessLabelOpts = Prettify<
@@ -41,9 +43,14 @@ export const headlessLabel = (
   el.textContent = opts.text;
   if (!opts.unstyled) applyStyles(el, opts.heading ? HEADING_SKIN : LABEL_SKIN);
   applyBaseOpts(el, opts);
+  const overrides = {
+    particleCount:
+      opts.particleCount ?? (opts.heading ? HEADING_PARTICLE_COUNT : LABEL_PARTICLE_COUNT),
+  };
   return toElementComponent({
     el,
     role: opts.heading ? 'heading' : 'text',
     screen: opts.screen,
+    overrides,
   });
 };

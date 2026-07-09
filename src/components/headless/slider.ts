@@ -23,7 +23,7 @@
 // wrong for — Decision §5 carves it out.)
 
 import type { HeadlessSliderOpts, SliderComponent } from './types';
-import { applyBaseOpts, applyStyles, toElementComponent } from './element';
+import { applyBaseOpts, applyStyles, toElementComponent, transitionGuard } from './element';
 import {
   DISABLED_OPACITY,
   SLIDER_FILL_BACKGROUND,
@@ -31,6 +31,7 @@ import {
   SLIDER_MAX,
   SLIDER_MIN,
   SLIDER_PAGE_STEPS,
+  SLIDER_PARTICLE_COUNT,
   SLIDER_STEP,
   SLIDER_THUMB_BACKGROUND,
   SLIDER_THUMB_SHADOW,
@@ -153,10 +154,16 @@ export const headlessSlider = (opts: HeadlessSliderOpts): SliderComponent => {
     opts.onChange?.(value);
   };
 
+  const overrides = { particleCount: opts.particleCount ?? SLIDER_PARTICLE_COUNT };
+  // Per-element guard — drag is blocked only while THIS slider's own cycle
+  // is in flight (its inners are particles then), never because some other
+  // component is transitioning.
+  const guard = transitionGuard();
+
   // ── Pointer model (we own the gesture) ──────────────────────────────────
   let dragging = false;
   const onPointerDown = (e: PointerEvent): void => {
-    if (opts.disabled || screen.phase() !== 'idle') return;
+    if (opts.disabled || guard.busy()) return;
     dragging = true;
     el.setPointerCapture(e.pointerId);
     commit(valueFromPointer(e.clientX, track.getBoundingClientRect(), min, max, step));
@@ -201,6 +208,8 @@ export const headlessSlider = (opts: HeadlessSliderOpts): SliderComponent => {
     el,
     role: 'slider',
     screen,
+    guard,
+    overrides,
     onDispose: () => {
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);

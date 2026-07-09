@@ -28,6 +28,11 @@ export type ElementComponent<
   readonly role: R;
   // Compile-time strategy for this role ('rasterize' | 'live-dom').
   readonly strategy: (typeof RENDER_STRATEGY_BY_ROLE)[R];
+  // True while THIS element's own dissolve/swap cycle is in flight. Other
+  // components' transitions do not set it — interaction gates on this, not
+  // on the controller's global phase, so one dissolving element never blocks
+  // the rest of the UI.
+  readonly isTransitioning: () => boolean;
   // Round-trip this element through the transition core:
   // element → particles → element. Resolves on settle.
   readonly dissolve: () => Promise<void>;
@@ -54,6 +59,11 @@ export type HeadlessBaseOpts = {
   className?: string;
   // Inline style overrides, merged over the default skin.
   style?: Partial<CSSStyleDeclaration>;
+  // How many particles this component's dissolve/swap spawns. Defaults to a
+  // per-component value scaled to its silhouette (see headless/constant.ts);
+  // the engine controller default (6000) applies only if neither is set.
+  // Lower it for dense grids; raise it for big, detailed components.
+  particleCount?: number;
 };
 
 export type HeadlessButtonOpts = Prettify<

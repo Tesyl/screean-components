@@ -6,8 +6,8 @@
 
 import type { ElementComponent, HeadlessBaseOpts } from './types';
 import type { Prettify } from '../transition';
-import { applyBaseOpts, applyStyles, toElementComponent } from './element';
-import { BUTTON_BORDER, BUTTON_SHADOW, DEFAULT_FONT_FAMILY } from './constant';
+import { applyBaseOpts, applyStyles, toElementComponent, transitionGuard } from './element';
+import { BUTTON_BORDER, BUTTON_SHADOW, CARD_PARTICLE_COUNT, DEFAULT_FONT_FAMILY } from './constant';
 
 export type HeadlessCardOpts = Prettify<
   HeadlessBaseOpts & {
@@ -41,13 +41,17 @@ export const headlessCard = (
   if (!opts.unstyled) applyStyles(el, CARD_SKIN);
   applyBaseOpts(el, opts);
 
+  const overrides = { particleCount: opts.particleCount ?? CARD_PARTICLE_COUNT };
+  const guard = transitionGuard();
   let handleClick: ((e: MouseEvent) => void) | null = null;
   if (onClick) {
     el.style.cursor = 'pointer';
     handleClick = (e: MouseEvent): void => {
-      if (opts.disabled || screen.phase() !== 'idle') return;
+      // Per-element guard, not the controller's global phase — other cards /
+      // components transitioning never block this one.
+      if (opts.disabled || guard.busy()) return;
       onClick(e);
-      if (dissolveOnActivate) void screen.dissolve(el);
+      if (dissolveOnActivate) void guard.run(() => screen.dissolve(el, overrides));
     };
     el.addEventListener('click', handleClick);
   }
@@ -56,6 +60,8 @@ export const headlessCard = (
     el,
     role: 'none',
     screen,
+    guard,
+    overrides,
     onDispose: () => {
       if (handleClick) el.removeEventListener('click', handleClick);
     },

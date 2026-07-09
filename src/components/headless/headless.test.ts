@@ -17,14 +17,27 @@ import type { ScreenController, TransitionPhaseKind } from '../transition';
 import { headlessButton } from './button';
 import { clampToStep, headlessSlider, valueFromPointer } from './slider';
 
-const stubScreen = (phase: TransitionPhaseKind = 'idle'): ScreenController & {
+// Stub controller. `setHold(true)` makes dissolve() return a promise that
+// stays pending until `flush()` — lets tests hold a transition open and
+// observe the per-element guard. `phase` is kept for the legacy stub shape
+// but the factories no longer gate on it (that was the global-blocking bug).
+type StubScreen = ScreenController & {
   dissolved: HTMLElement[];
-} => {
+  setHold: (v: boolean) => void;
+  flush: () => void;
+};
+
+const stubScreen = (phase: TransitionPhaseKind = 'idle'): StubScreen => {
   const dissolved: HTMLElement[] = [];
+  let hold = false;
+  let pending: Array<() => void> = [];
   return {
     dissolved,
-    dissolve: vi.fn(async (el: HTMLElement | null) => {
+    setHold: (v: boolean) => { hold = v; },
+    flush: () => { const p = pending; pending = []; p.forEach((r) => r()); },
+    dissolve: vi.fn((el: HTMLElement | null) => {
       if (el) dissolved.push(el);
+      return hold ? new Promise<void>((res) => pending.push(res)) : Promise.resolve();
     }),
     swap: vi.fn(async () => {}),
     thwack: vi.fn(),
@@ -33,8 +46,10 @@ const stubScreen = (phase: TransitionPhaseKind = 'idle'): ScreenController & {
     phase: () => phase,
     world: vi.fn() as unknown as ScreenController['world'],
     dispose: vi.fn(),
-  } as unknown as ScreenController & { dissolved: HTMLElement[] };
+  } as unknown as StubScreen;
 };
+
+const flushMicrotasks = () => new Promise((r) => setTimeout(r, 0));
 
 // ─── button ──────────────────────────────────────────────────────────────────
 
@@ -71,12 +86,32 @@ describe('headlessButton', () => {
     expect(screen.dissolve).not.toHaveBeenCalled();
   });
 
-  it('gates activation while a transition is in flight (non-idle phase)', () => {
-    const screen = stubScreen('particles');
-    const onClick = vi.fn();
-    const b = headlessButton({ screen, label: 'Busy', onClick });
-    b.el.click();
-    expect(onClick).not.toHaveBeenCalled();
+  it('blocks re-activating ITSELF mid-cycle, never other elements, and frees on settle', async () => {
+    // The core fix: one element being mid-dissolve must NOT block the rest of
+    // the UI. Hold A's dissolve open and prove B still activates.
+    const screen = stubScreen();
+    screen.setHold(true);
+    const aClicks = vi.fn();
+    const bClicks = vi.fn();
+    const a = headlessButton({ screen, label: 'A', onClick: aClicks });
+    const b = headlessButton({ screen, label: 'B', onClick: bClicks });
+
+    a.el.click();
+    expect(aClicks).toHaveBeenCalledOnce();
+    expect(a.isTransitioning()).toBe(true);
+
+    a.el.click(); // A is mid-cycle → re-activation blocked
+    expect(aClicks).toHaveBeenCalledOnce();
+
+    b.el.click(); // B is independent → activates even though A is transitioning
+    expect(bClicks).toHaveBeenCalledOnce();
+    expect(b.isTransitioning()).toBe(true);
+
+    screen.flush(); // A + B settle
+    await flushMicrotasks();
+    expect(a.isTransitioning()).toBe(false);
+    a.el.click(); // clickable again
+    expect(aClicks).toHaveBeenCalledTimes(2);
   });
 
   it('disabled button never fires and is marked for the a11y tree', () => {
@@ -199,16 +234,36 @@ describe('headlessSlider', () => {
     }
   });
 
-  it('gesture is gated while a transition is in flight', () => {
+  it('drag is blocked while the slider\'s OWN cycle is in flight', () => {
+    const screen = stubScreen();
+    screen.setHold(true);
     const changes: number[] = [];
-    const s = headlessSlider({
-      screen: stubScreen('returning'),
-      min: 0,
-      max: 100,
-      onChange: (v) => changes.push(v),
-    });
-    s.el.dispatchEvent(new PointerEvent('pointerdown', { clientX: 150, bubbles: true }));
+    const s = headlessSlider({ screen, value: 50, min: 0, max: 100, onChange: (v) => changes.push(v) });
+    void s.dissolve(); // own cycle → guard busy (held)
+    expect(s.isTransitioning()).toBe(true);
+    // Gated path returns before any commit (happy-dom track width is 0, so a
+    // proceeding drag would commit to min=0 ≠ 50 and fire onChange).
+    s.el.dispatchEvent(new PointerEvent('pointerdown', { clientX: 0, bubbles: true }));
     expect(changes).toEqual([]);
+    screen.flush();
+  });
+
+  it('drag is NOT blocked by another element\'s transition', () => {
+    const screen = stubScreen();
+    screen.setHold(true);
+    const other = headlessButton({ screen, label: 'X', onClick: () => {} });
+    other.el.click(); // held mid-transition
+    expect(other.isTransitioning()).toBe(true);
+
+    const changes: number[] = [];
+    const s = headlessSlider({ screen, value: 50, min: 0, max: 100, onChange: (v) => changes.push(v) });
+    // happy-dom may not implement pointer capture — stub so the drag path runs.
+    s.el.setPointerCapture = (_id: number) => {};
+    s.el.hasPointerCapture = (_id: number) => false;
+    s.el.releasePointerCapture = (_id: number) => {};
+    s.el.dispatchEvent(new PointerEvent('pointerdown', { clientX: 0, bubbles: true }));
+    expect(changes).toEqual([0]); // proceeds despite `other` transitioning
+    screen.flush();
   });
 
   it('disabled slider is out of the tab order and inert', () => {

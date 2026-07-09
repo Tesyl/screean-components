@@ -19,14 +19,26 @@ import { headlessCard } from './card';
 import { headlessTextField } from './textField';
 import { headlessImage } from './image';
 
-const stubScreen = (phase: TransitionPhaseKind = 'idle'): ScreenController & {
+// `setHold(true)` holds dissolve() pending until `flush()` — lets tests
+// exercise the per-element transition guard (a control blocks re-activating
+// itself mid-cycle, but never blocks other elements).
+type StubScreen = ScreenController & {
   dissolved: HTMLElement[];
-} => {
+  setHold: (v: boolean) => void;
+  flush: () => void;
+};
+
+const stubScreen = (phase: TransitionPhaseKind = 'idle'): StubScreen => {
   const dissolved: HTMLElement[] = [];
+  let hold = false;
+  let pending: Array<() => void> = [];
   return {
     dissolved,
-    dissolve: vi.fn(async (el: HTMLElement | null) => {
+    setHold: (v: boolean) => { hold = v; },
+    flush: () => { const p = pending; pending = []; p.forEach((r) => r()); },
+    dissolve: vi.fn((el: HTMLElement | null) => {
       if (el) dissolved.push(el);
+      return hold ? new Promise<void>((res) => pending.push(res)) : Promise.resolve();
     }),
     swap: vi.fn(async () => {}),
     thwack: vi.fn(),
@@ -35,11 +47,13 @@ const stubScreen = (phase: TransitionPhaseKind = 'idle'): ScreenController & {
     phase: () => phase,
     world: vi.fn() as unknown as ScreenController['world'],
     dispose: vi.fn(),
-  } as unknown as ScreenController & { dissolved: HTMLElement[] };
+  } as unknown as StubScreen;
 };
 
+const flushMicrotasks = () => new Promise((r) => setTimeout(r, 0));
+
 describe('headlessCheckbox', () => {
-  it('activation flips state, repaints, reports, then dissolves the new visual', () => {
+  it('activation flips state, repaints, reports, then dissolves the new visual', async () => {
     const screen = stubScreen();
     const changes: boolean[] = [];
     const cb = headlessCheckbox({
@@ -53,6 +67,9 @@ describe('headlessCheckbox', () => {
     expect(cb.el.getAttribute('aria-checked')).toBe('true'); // repainted BEFORE dissolve
     expect(changes).toEqual([true]);
     expect(screen.dissolved).toEqual([cb.el]);
+    // The control is mid-cycle until its dissolve settles — a real user can't
+    // re-toggle particles. Let it settle, then the next click un-checks.
+    await flushMicrotasks();
     cb.el.click();
     expect(cb.checked()).toBe(false);
     expect(changes).toEqual([true, false]);
@@ -79,10 +96,24 @@ describe('headlessToggle', () => {
     expect(screen.dissolved).toEqual([t.el]);
   });
 
-  it('activation is gated while a transition is in flight', () => {
-    const t = headlessToggle({ screen: stubScreen('particles'), ariaLabel: 'Busy' });
-    t.el.click();
-    expect(t.checked()).toBe(false);
+  it('blocks re-activating itself mid-cycle, but not while OTHER elements transition', () => {
+    const screen = stubScreen();
+    screen.setHold(true);
+    const t = headlessToggle({ screen, ariaLabel: 'A' });
+
+    // Some other element is mid-transition — must not block this toggle.
+    const other = headlessToggle({ screen, ariaLabel: 'B' });
+    other.el.click();
+    expect(other.isTransitioning()).toBe(true);
+
+    t.el.click(); // activates despite `other` being mid-cycle (the fix)
+    expect(t.checked()).toBe(true);
+    expect(t.isTransitioning()).toBe(true);
+
+    t.el.click(); // its OWN cycle is in flight → re-activation blocked
+    expect(t.checked()).toBe(true); // unchanged (no toggle back)
+
+    screen.flush();
   });
 });
 

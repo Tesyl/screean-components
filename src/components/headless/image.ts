@@ -12,6 +12,7 @@
 import type { ElementComponent, HeadlessBaseOpts } from './types';
 import type { Prettify } from '../transition';
 import { applyBaseOpts, applyStyles, toElementComponent } from './element';
+import { IMAGE_PARTICLE_COUNT } from './constant';
 
 export type HeadlessImageOpts = Prettify<
   HeadlessBaseOpts & {
@@ -34,7 +35,8 @@ export const headlessImage = (
   if (!opts.unstyled) applyStyles(el, { borderRadius: '10px', display: 'block' });
   applyBaseOpts(el, opts);
 
-  const base = toElementComponent({ el, role: 'img', screen: opts.screen });
+  const overrides = { particleCount: opts.particleCount ?? IMAGE_PARTICLE_COUNT };
+  const base = toElementComponent({ el, role: 'img', screen: opts.screen, overrides });
   return {
     ...base,
     dissolve: async () => {

@@ -1607,8 +1607,15 @@ export const mount = (
       }),
       loadGlb(
         options.logoUrl ??
-          // Lazy default — kept out of the eager bundle so consumers that pass
-          // their own logoUrl never download the 882 KB asset.
+          // Default logo, LAZY-loaded as a separate async chunk so it stays
+          // out of the eager bundle — `??` short-circuits, so consumers that
+          // pass their own `logoUrl` never download it. NOTE: vite *library*
+          // mode inlines this asset as base64 (≈1.1 MB) regardless of
+          // `assetsInlineLimit`; binary emission would need a custom
+          // emitFile rollup plugin (tracked as a publish follow-up). In the
+          // SITE build it emits as a real hashed file. `new URL(...,
+          // import.meta.url)` was tried and is worse here: it inlines into
+          // the EAGER main chunk instead of this lazy one.
           (await import('../assets/6ixLogo.glb?url')).default,
       ),
     ]);

@@ -11,13 +11,14 @@
 // transition artifact, not the click — handlers never wait on particles.
 
 import type { ElementComponent, HeadlessButtonOpts } from './types';
-import { applyBaseOpts, applyStyles, toElementComponent } from './element';
+import { applyBaseOpts, applyStyles, toElementComponent, transitionGuard } from './element';
 import {
   BUTTON_BACKGROUND,
   BUTTON_BORDER,
   BUTTON_FOREGROUND,
   BUTTON_HEIGHT_PX,
   BUTTON_PADDING_X_PX,
+  BUTTON_PARTICLE_COUNT,
   BUTTON_RADIUS_PX,
   BUTTON_SHADOW,
   DEFAULT_FONT_FAMILY,
@@ -58,14 +59,17 @@ export const headlessButton = (
   if (!opts.unstyled) applyStyles(el, BUTTON_SKIN);
   applyBaseOpts(el, { ...opts, ariaLabel: opts.ariaLabel ?? label });
 
+  const overrides = { particleCount: opts.particleCount ?? BUTTON_PARTICLE_COUNT };
+  const guard = transitionGuard();
   const handleClick = (e: MouseEvent): void => {
     if (opts.disabled) return;
-    // Re-entrancy guard: while a cycle is in flight the element is
-    // opacity:0 + pointer-events:none, but keyboard activation can still
-    // reach it — gate on the controller's phase.
-    if (screen.phase() !== 'idle') return;
+    // Re-entrancy guard, PER ELEMENT: while THIS button's own cycle is in
+    // flight it's opacity:0 + pointer-events:none, but keyboard activation
+    // can still reach it. We gate on its own guard — not the controller's
+    // global phase — so a different button dissolving never blocks this one.
+    if (guard.busy()) return;
     onClick(e);
-    if (dissolveOnActivate) void screen.dissolve(el);
+    if (dissolveOnActivate) void guard.run(() => screen.dissolve(el, overrides));
   };
   el.addEventListener('click', handleClick);
 
@@ -73,6 +77,8 @@ export const headlessButton = (
     el,
     role: 'button',
     screen,
+    guard,
+    overrides,
     onDispose: () => el.removeEventListener('click', handleClick),
   });
 };

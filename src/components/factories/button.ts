@@ -31,6 +31,11 @@ export type ButtonOpts = InteractiveOpts & SizedOpts & {
   onClick: Handler;
 };
 
+/**
+ * @deprecated Legacy Pattern B (SDF scene-graph + DOM mirror). Use
+ * `headlessButton` from `src/components/headless` — the real-DOM, rasterize-
+ * on-transition standard. Retained only for `src/demos/legacy-demo`.
+ */
 export const button = (opts: ButtonOpts): Component => {
   const width = opts.width ?? 200;
   const height = opts.height ?? 56;
