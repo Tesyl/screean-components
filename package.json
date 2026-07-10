@@ -1,9 +1,9 @@
 {
   "name": "@tesyl/screean-components",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "UI components built on the screean particle engine — including the six-ink GPU hero/background.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
@@ -18,6 +18,10 @@
     "./react": {
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js"
+    },
+    "./components": {
+      "types": "./dist/components.d.ts",
+      "import": "./dist/components.js"
     }
   },
   "files": [
@@ -34,7 +38,7 @@
     "sync:engine": "pnpm --dir ../screean run build && pnpm install"
   },
   "peerDependencies": {
-    "@tesyl/screean": "^0.2.0",
+    "@tesyl/screean": "^0.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -65,5 +69,18 @@
     "vite": "^5.4.11",
     "vite-plugin-dts": "^4.3.0",
     "vitest": "^2.1.8"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tesyl/screean-components.git"
+  },
+  "homepage": "https://github.com/Tesyl/screean-components#readme",
+  "keywords": [
+    "react",
+    "components",
+    "particles",
+    "webgpu",
+    "headless-ui",
+    "animation"
+  ]
 }

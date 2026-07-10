@@ -185,29 +185,28 @@ runtime deps (`@radix-ui/react-slot`, `class-variance-authority`, `clsx`,
 pop-only (dissolve removed). The deprecated declarations carry `@deprecated`
 JSDoc so editors strike them through.
 
-## 5b. Published package surface (and the two `./react`s)
+## 5b. Published package surface
 
-`@tesyl/screean-components` currently publishes **two entries**, and neither
-is the Pattern-A component library (that lives in `src/components/` and is
-**not exported yet** — a follow-up if it's to ship):
+`@tesyl/screean-components` publishes **three entries** (v0.3.0):
 
 | Export | Source | What it is | Consumer |
 |---|---|---|---|
-| `.` | `src/index.ts` → `src/hero` → `site/experiments/sixShowcaseInk.ts` | the six-ink GPU hero `mount()` (vanilla) | — |
-| `./react` | `src/react/index.tsx` | `<SixInkBackground>` — React wrapper over the hero | **theGreenRoomSite** (`six-ink-background.tsx`, `six-chalk-background.tsx`) |
+| `.` | `src/index.ts` → `src/hero` → `site/experiments/sixShowcaseInk.ts` | the six-ink GPU hero `mount()` (vanilla) | **theGreenRoomSite** |
+| `./react` | `src/react/index.tsx` | `<Screean*/>` component wrappers over the headless factories (+ `useHeadless` bridge, `<SixInkBackground>`, engine provider re-exports) | external React apps; **theGreenRoomSite** (`six-ink-background.tsx`, `six-chalk-background.tsx`) |
+| `./components` | `src/components/public.ts` | the vanilla headless factories + transition-core re-export — Pattern A only (the legacy surface in `src/components/index.ts` stays internal) | external vanilla-TS apps |
 
-**Do not confuse the two `./react` exports across the packages:**
+**The two packages' `./react` entries layer, not compete:**
 - **`@tesyl/screean/react`** = `<ScreenProvider>` + hooks (the transition
   theater — engine binding).
-- **`@tesyl/screean-components/react`** = `<SixInkBackground>` (a prebuilt
-  background — a *product*, externally consumed).
+- **`@tesyl/screean-components/react`** = the component wrappers, which FIND
+  that provider through context (`useScreenOptional().controller()`), and
+  re-export it for one-stop imports. See `docs/react-wrappers.md` for the
+  three-tier prop model and lifecycle invariants.
 
-They are unrelated surfaces that happen to share the `./react` name. The
-engine is a **peer** dependency (`^0.2.0`); see CLAUDE.md for the local
-build-order workflow (`sync:engine`). Known publish follow-ups: the lib build
+The engine is a **peer** dependency (`^0.3.0`); see CLAUDE.md for the local
+build-order workflow (`sync:engine`). Known publish follow-up: the lib build
 base64-inlines the 882 KB default glTF (vite lib-mode limitation — kept lazy;
-needs an emitFile plugin for binary emission); and the headless component
-library has no published export.
+needs an emitFile plugin for binary emission).
 
 ## 6. Invariants — do not "simplify"
 

@@ -4,6 +4,43 @@ UI component library + showcase site built on the [`screean`](../screean) partic
 
 The thesis: **state changes feel like matter moving, not styles swapping.** When UI changes, particles bound to "before" re-bind to "after" — the spring/drag system carries them through. The intermediate state is the physics, not a hand-tuned animation.
 
+## Install & use (React)
+
+```sh
+npm install @tesyl/screean @tesyl/screean-components
+```
+
+```tsx
+'use client'; // Next.js App Router — every entry is browser-only
+
+import { useState } from 'react';
+import {
+  ScreenProvider,
+  ScreeanButton,
+  ScreeanSlider,
+} from '@tesyl/screean-components/react';
+
+export default function App() {
+  const [v, setV] = useState(40);
+  return (
+    <ScreenProvider feel="taut">
+      <ScreeanButton label="Save" onClick={() => console.log('saved')} />
+      <ScreeanSlider value={v} onChange={setV} />
+    </ScreenProvider>
+  );
+}
+```
+
+All nine components ship as wrappers: `ScreeanButton · ScreeanLabel ·
+ScreeanCard · ScreeanCheckbox · ScreeanToggle · ScreeanRadioGroup ·
+ScreeanImage · ScreeanTextField · ScreeanSlider`. Prop model, imperative
+handles (`ref` → `dissolve()`/`swapTo()`), and lifecycle details:
+[`docs/react-wrappers.md`](docs/react-wrappers.md).
+
+Vanilla TS instead? `@tesyl/screean-components/components` exports the
+headless factories + `createScreenController` directly — see
+[`docs/headless-components-guide.md`](docs/headless-components-guide.md).
+
 ## Layout
 
 ```
@@ -55,7 +92,7 @@ screean-components/
 ```sh
 pnpm install
 pnpm dev          # site SPA at http://localhost:3100/
-pnpm test         # 161 tests
+pnpm test         # 261 tests
 pnpm build        # type-check + bundle all entries
 ```
 
