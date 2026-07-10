@@ -143,9 +143,18 @@ clouds that exist during transitions or particle-art scenes (see the
 `visual-fallaway` experiment). What's gone is its role as the component
 dissolve mechanism.
 
-## Upstreaming note
+## Upstreaming note (resolved)
 
-`screean/react`'s `ScreenProvider` still carries its own copy of the state
-machine. Next step: make it a thin wrapper over `createScreenController`
-(or move the core into `@tesyl/screean` proper) so the React binding and
-this library share literally one implementation.
+Done: the four-frame state machine lives in `@tesyl/screean` (`src/screen`)
+and `ScreenProvider` is a thin wrapper over `createScreenController` — one
+implementation everywhere. This library's `src/components/transition/` is a
+stable re-export.
+
+## Consuming from React
+
+The factories in this guide ship as React components at
+`@tesyl/screean-components/react` (`<ScreeanButton/>` …), bridged by the
+`useHeadless` hook (create in effect, `display: contents` host, dispose on
+cleanup). Prop tiers, controlled-value sync semantics, and imperative
+handles: [`react-wrappers.md`](react-wrappers.md). Vanilla consumers import
+the factories directly from `@tesyl/screean-components/components`.
