@@ -35,7 +35,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "sync:engine": "pnpm --dir ../screean run build && pnpm install"
+    "sync:engine": "pnpm --dir ../screean run build && pnpm install",
+    "prepack": "vite build --config vite.lib.config.ts"
   },
   "peerDependencies": {
     "@tesyl/screean": "^0.3.0",
