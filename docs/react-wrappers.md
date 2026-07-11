@@ -72,6 +72,11 @@ Notes:
   JSON-compared, so inline literals don't recreate every render.
 - **`style` is `Partial<CSSStyleDeclaration>`** — the factory contract, NOT
   `React.CSSProperties`. Numeric values would land unitless.
+- **Don't derive tier-3 props from tier-2 state** (e.g.
+  `label={`Agree (${checked})`}`). The activation's setState recreates the
+  element before its dissolve rasterizes — the transition is skipped and the
+  engine logs a "zero layout size" rasterize warning (tolerated, no crash).
+  Keep dynamic text OUTSIDE the component, or accept the skip.
 
 ## Imperative handles
 
