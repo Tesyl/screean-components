@@ -1,0 +1,199 @@
+{
+  "measurementDateLocal": "2026-09-23",
+  "timezone": "America/Chicago",
+  "provenance": "Original full run from prior review, transcribed from captured tool output. Not the later smoke run. Raw individual frame samples were not retained.",
+  "environment": {
+    "node": "v25.1.0",
+    "cpu": "Apple M4 Pro",
+    "arch": "arm64",
+    "platform": "darwin"
+  },
+  "method": {
+    "seed": 12345,
+    "trials": 3,
+    "stepsPerTrial": 43,
+    "dtSeconds": 0.016666666666666666,
+    "warmupStepsPerMode": 50,
+    "warmupCount": 6000,
+    "warmupArea": "160x48",
+    "percentileIndex": "min(length-1, floor(length*p))",
+    "firstMs": "median of three initial steps",
+    "subsequentSamplesPerCase": 126,
+    "excluded": "rasterization, sampling, rendering, DOM, reform, GPU work"
+  },
+  "repositories": {
+    "screean-components": {
+      "head": "7fff248b86d411f9744e6104077415a4e7f9c3d4",
+      "dirty": true
+    },
+    "screean": {
+      "head": "58352f9a24c80501a69409aa55cad81612c94840",
+      "dirty": true
+    },
+    "flowfield": {
+      "head": "7762dd61396032d916d357aaa57db359880ec03e",
+      "dirty": true
+    }
+  },
+  "sourceHashesAtHandoff": {
+    "../screean/src/core/World.ts": "24c22c7ee459feacf0a19f2a444a7cad19106351f9294eb38f259e515dbf4d58",
+    "../screean/src/core/forces.ts": "3e045575e04808f29a9aa69b4728358d6081266a82db49250bc9c46bdd43ece4",
+    "../screean/src/core/integrator.ts": "bfaad0cccf398a1fc53164f121e7478e097961cbd3c4e7182988cbc0d2023aeb",
+    "../screean/src/core/SpatialHash.ts": "ee4f89eae0a02584ffde53b0c6f7e127363ae1730908fbe199040c29077bb2b3",
+    "../screean/src/core/types.ts": "d5369f73bd12e33b44dbb26e893111386ce8577af9e2e95ca7d39be3067272b9",
+    "../screean/src/feel/presets.ts": "d155f10d70b7265d62dfdad900211297c0bcc2b71996a099419e9fd4ffa591f6",
+    "../screean/src/choreography/spawn.ts": "b003192c59753ed4586f824447f64119d80263cf0d669c0a79bdf07b1545c03c",
+    "../screean/src/choreography/radialImpulse.ts": "64e0c167d52f8207b83c2a4911d399f3f7940866067291e96d88ea3042bc28c1",
+    "../screean/src/utils/random.ts": "63739c644eba7c2240a7b6b43b719ceafaf23903511a1860e81a8a60bc977ba1",
+    "../screean/src/utils/color.ts": "4d19ac333b36becdd2f0c838b54ad8d099358015dc90d80992f7f880e9fbc470",
+    "../screean/src/screen/controller.ts": "e3b305bfff6f8baaf39e9da76dc8eb05821cc9d1e22847b764edab0070d0ee30",
+    "../screean/src/screen/machine.ts": "82efc0d7affed2af997e2f8c5b1e28297a9adf61513cd24ea54fac3f934ecdc1",
+    "../screean/src/screen/constant.ts": "622572481cb01c877f2515f663e801cfe0d545dfd2e7530578e94924515b05a6"
+  },
+  "results": [
+    {
+      "area": "160x48",
+      "n": 6000,
+      "mode": "default",
+      "firstMs": 10.99,
+      "roamMedianMs": 4.75,
+      "roamP95Ms": 10.09
+    },
+    {
+      "area": "160x48",
+      "n": 6000,
+      "mode": "no-repel",
+      "firstMs": 0.87,
+      "roamMedianMs": 0.87,
+      "roamP95Ms": 1.33
+    },
+    {
+      "area": "160x48",
+      "n": 6000,
+      "mode": "perlin",
+      "firstMs": 2.42,
+      "roamMedianMs": 1.99,
+      "roamP95Ms": 2.37
+    },
+    {
+      "area": "160x48",
+      "n": 25000,
+      "mode": "default",
+      "firstMs": 163.78,
+      "roamMedianMs": 26.54,
+      "roamP95Ms": 112.93
+    },
+    {
+      "area": "160x48",
+      "n": 25000,
+      "mode": "no-repel",
+      "firstMs": 3.51,
+      "roamMedianMs": 3.71,
+      "roamP95Ms": 4.0
+    },
+    {
+      "area": "160x48",
+      "n": 25000,
+      "mode": "perlin",
+      "firstMs": 8.37,
+      "roamMedianMs": 8.29,
+      "roamP95Ms": 8.75
+    },
+    {
+      "area": "160x48",
+      "n": 65536,
+      "mode": "default",
+      "firstMs": 1258.08,
+      "roamMedianMs": 104.87,
+      "roamP95Ms": 614.07
+    },
+    {
+      "area": "160x48",
+      "n": 65536,
+      "mode": "no-repel",
+      "firstMs": 9.52,
+      "roamMedianMs": 9.73,
+      "roamP95Ms": 10.21
+    },
+    {
+      "area": "160x48",
+      "n": 65536,
+      "mode": "perlin",
+      "firstMs": 21.85,
+      "roamMedianMs": 21.8,
+      "roamP95Ms": 22.74
+    },
+    {
+      "area": "640x360",
+      "n": 6000,
+      "mode": "default",
+      "firstMs": 3.77,
+      "roamMedianMs": 3.57,
+      "roamP95Ms": 4.24
+    },
+    {
+      "area": "640x360",
+      "n": 6000,
+      "mode": "no-repel",
+      "firstMs": 1.03,
+      "roamMedianMs": 1.04,
+      "roamP95Ms": 1.63
+    },
+    {
+      "area": "640x360",
+      "n": 6000,
+      "mode": "perlin",
+      "firstMs": 2.15,
+      "roamMedianMs": 2.14,
+      "roamP95Ms": 2.65
+    },
+    {
+      "area": "640x360",
+      "n": 25000,
+      "mode": "default",
+      "firstMs": 21.32,
+      "roamMedianMs": 21.53,
+      "roamP95Ms": 22.18
+    },
+    {
+      "area": "640x360",
+      "n": 25000,
+      "mode": "no-repel",
+      "firstMs": 4.1,
+      "roamMedianMs": 4.19,
+      "roamP95Ms": 4.59
+    },
+    {
+      "area": "640x360",
+      "n": 25000,
+      "mode": "perlin",
+      "firstMs": 8.77,
+      "roamMedianMs": 8.93,
+      "roamP95Ms": 9.11
+    },
+    {
+      "area": "640x360",
+      "n": 65536,
+      "mode": "default",
+      "firstMs": 93.75,
+      "roamMedianMs": 89.15,
+      "roamP95Ms": 94.46
+    },
+    {
+      "area": "640x360",
+      "n": 65536,
+      "mode": "no-repel",
+      "firstMs": 10.89,
+      "roamMedianMs": 10.79,
+      "roamP95Ms": 11.02
+    },
+    {
+      "area": "640x360",
+      "n": 65536,
+      "mode": "perlin",
+      "firstMs": 23.27,
+      "roamMedianMs": 22.76,
+      "roamP95Ms": 23.44
+    }
+  ]
+}

@@ -55,7 +55,7 @@ src/demos/                   standalone demo routes (own .html entries)
 ## Working across the two repos (`screean` ⇄ `screean-components`)
 
 The engine is consumed via `@tesyl/screean` (declared as a **peer**
-dependency `^0.2.0`; resolved locally through a `file:../screean` **dev**
+dependency `^0.3.0`; resolved locally through a `file:../screean` **dev**
 dependency). pnpm **hard-copies** the engine into `node_modules` — it is NOT
 a live symlink. So:
 

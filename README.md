@@ -43,49 +43,54 @@ headless factories + `createScreenController` directly — see
 
 ## Layout
 
+**Pattern A (DOM-first) is the standard.** The real DOM element holds the
+truth; particles are a transition artifact. Full detail:
+[`docs/ARCHITECTURE-components.md`](docs/ARCHITECTURE-components.md).
+
 ```
 screean-components/
 ├── src/
-│   ├── components/                 Component library (the public surface)
-│   │   ├── component.ts             Core factory + findComponentAncestor
-│   │   ├── types.ts                 Component, ComponentEvent, opts, AriaRole
-│   │   ├── index.ts                 Public barrel — consumers import from here
-│   │   ├── factories/               Visible factories
-│   │   │   ├── label.ts · button.ts · card.ts
-│   │   │   ├── toggle.ts · slider.ts · checkbox.ts
-│   │   │   └── radio.ts · image.ts · textField.ts
-│   │   ├── dom/                     DOM mirror + dom-flavored choreography
-│   │   │   ├── domMirror.ts         Real <div>/<input> overlay per component
-│   │   │   ├── dissolveAndReform.ts Click → shatter → return → fade-in
-│   │   │   └── popTo3D.ts           Z-axis lift effect
-│   │   ├── routing/                 Event + focus routing
-│   │   │   ├── pointerTracker.ts · focusTracker.ts
-│   │   │   └── routePointerEvent.ts · routeKeyboardEvent.ts
-│   │   └── ui/                      React shadcn versions (interop)
+│   ├── index.ts                    Subpath "." — the six-ink GPU hero
+│   ├── hero/                       Six-ink hero/background implementation
+│   ├── components/
+│   │   ├── public.ts               Subpath "./components" — Pattern A only
+│   │   ├── types.ts                AriaRole + RENDER_STRATEGY_BY_ROLE
+│   │   │                           (the compile-time classification boundary)
+│   │   ├── headless/               DOM-first factories — THE component library
+│   │   │   ├── button.ts · label.ts · card.ts · checkbox.ts · toggle.ts
+│   │   │   ├── radio.ts · image.ts · textField.ts · slider.ts
+│   │   │   ├── checkable.ts         Shared checkbox / toggle / radio behaviour
+│   │   │   └── element.ts           applyStyles · applyBaseOpts · toElementComponent
+│   │   ├── transition/             Re-export of the engine's dissolve/swap core
+│   │   │                           (createScreenController, applyTransitionFrame)
+│   │   ├── choreography/           Free-particle motion effects + pipeline
+│   │   │                           (NOT a component layer)
+│   │   ├── styles.css              Default skin — inline + foreignObject-safe
+│   │   ├── component.ts            LEGACY (Pattern B) — do not extend
+│   │   ├── factories/              LEGACY — scene-graph button.ts · label.ts
+│   │   └── routing/                LEGACY — pointer + focus trackers
+│   ├── react/                      Subpath "./react" — 9 wrappers, useHeadless,
+│   │                               SixInkBackground, ScreenProvider re-export
 │   ├── demos/                      Standalone Vite multi-page entries
-│   │   ├── legacy-demo/             /legacy-demo.html — original
-│   │   ├── button-grid/             /components.html — DOM mirror showcase
-│   │   ├── routing/                 /routing-demo.html — physics-as-routing
-│   │   └── html-interop/            /html-interop.html — Phase 3a
-│   ├── lib/utils.ts                shadcn cn() helper for ui/
+│   │   ├── button-grid/             /components.html
+│   │   ├── html-interop/            /html-interop.html
+│   │   ├── html-interop-2/          /html-interop-2.html
+│   │   ├── routing/                 /routing-demo.html
+│   │   └── legacy-demo/             /legacy-demo.html — the only Pattern B consumer
 │   └── testing/                    OffscreenCanvas stub for happy-dom tests
-└── site/                           Vanilla TS SPA (the showcase)
+└── site/                           Vanilla TS showcase SPA
     ├── main.ts · router.ts · layout.ts · themes.ts · embed.ts
-    ├── pages/                       Landing + components storybook + experiments + lab
-    ├── stories/                     Component storybook tile groups
-    ├── experiments/                 Lazy-loaded sandbox demos (button, sixLogo,
-    │                                flowfield, flowfield-gpu, controls)
-    ├── lab/                         Per-component design surface (NEW)
-    │   ├── mount.ts · types.ts · registry.ts
-    │   └── stories/                 One LabStory per component (9 total)
+    ├── pages/                       Landing · components · experiments · lab · moonshot
+    ├── stories/                     Storybook tile groups
+    ├── experiments/                 Lazy-loaded sandboxes (GPU flowfield, six-ink, …)
+    ├── lab/                         Per-component design surface (9 stories)
     ├── assets/                      .glb models, static assets
-    └── lib/                         Site utilities, by category
-        ├── transitions/             screeanNav, screeanWipe (canonical examples)
-        ├── effects/                 Reel, componentReel
-        ├── physics/                 flowfield (stacked-sine vector field)
-        ├── loaders/                 gltf (parser + area-weighted sampler)
-        └── ui/                      fullscreen
+    └── lib/                         transitions/ · effects/ · physics/ · loaders/ · ui/
 ```
+
+Removed since the previous README revision: `src/components/dom/` (the
+DOM-mirror overlay), `src/components/ui/`, and `src/lib/utils.ts`. Pattern A
+made the mirror unnecessary — a component IS a DOM element now.
 
 ## Run it
 
@@ -132,43 +137,78 @@ SizedOpts            = { width?, height?, radius?, font?, z? }
 
 Components are **consumer-controlled**: state (`pressed`, `checked`, `on`, `value`, `textValue`) is captured at construction; the consumer rebuilds with the new value on change. Mirrors React's controlled-input pattern.
 
-## DOM mirror
+## DOM-first rendering (this replaces the DOM mirror)
 
-`createDomMirror({ scene, host })` mounts a real DOM element per component, parented to a single `#screean-mirror` container above the canvas. Most components get a `<div role="...">`; `role=textbox` components get a real `<input type="text">` so the browser owns cursor / selection / IME / paste. Each element carries the component's role + ARIA state, sits at the component's world-bounds rect, and dispatches:
+Each headless factory authors a **real DOM element** — `<button>`, `<input
+type="range">`, `<input type="text">` — as the single source of truth. The
+browser keeps focus, keyboard, IME, copy/paste, screen readers, and
+forced-colour modes. The library does not re-implement them on canvas.
 
-- `click` + `keydown(Enter|Space)` → `onClick`
-- `input` (per keystroke from textbox elements) → `onInput`, with `e.value` carrying the new string
+Particles appear only at the transition edges. `RENDER_STRATEGY_BY_ROLE` in
+`src/components/types.ts` classifies every ARIA role:
 
-Inline `font` + `line-height: 1` keep DOM glyph metrics aligned with the canvas rasterization. This is what makes screen readers, keyboard focus, IME, copy/paste, and forced-color modes Just Work — without re-implementing them on canvas.
+- `'rasterize'` — DISCRETE components (button, checkbox, toggle, radio, label,
+  card, image). The element rasterizes to a bitmap field at a dissolve or swap.
+- `'live-dom'` — CONTINUOUS controls (slider drag, text input/IME). The element
+  stays live through the gesture; only the transition edges rasterize.
+
+The table is type-coupled to `AriaRole`. If you add a role and do not classify
+it, compilation fails.
+
+> The earlier `createDomMirror({ scene, host })` overlay is removed. It mirrored
+> scene-graph components into DOM elements, which Pattern A made redundant.
 
 ## Lab — per-component design surface
 
 `/lab/<story>` is where you tune a component's choreography before it lands in product code. Each story has Props / Forces / Choreography / Globals / Code tabs. State persists across stories so you can A/B-test "what does outBack feel like across all my components." See `site/lab/` and `site/lab/stories/` for the implementation.
 
-## How `screean` dependency works
+## How the `screean` dependency works
 
-`screean` is linked via `"screean": "file:../screean"` in `package.json`. Vite excludes it from `optimizeDeps` so HMR works when editing engine internals.
+The engine is a **peer** dependency: `"@tesyl/screean": "^0.3.0"`. Local
+development resolves it through a `file:../screean` **dev** dependency.
 
-The site (in `site/`) consumes `screean` through the same package barrel any external consumer would (`import { node, circle, spawn } from 'screean'`). It does NOT reach into the engine's `src/`.
+pnpm **hard-copies** the engine into `node_modules` — it is not a live symlink.
+After you edit the engine `src/`, run `pnpm run sync:engine` here. That rebuilds
+`../screean` and refreshes the copy. If you skip it, this repo type-checks
+against a stale engine `dist/` and reports confusing "has no export" errors.
 
-## Easing curves for `dissolveAndReform`
+This repo and the site both import from the package barrel
+(`import { node, circle, spawn } from '@tesyl/screean'`). Neither reaches into
+the engine's `src/`.
 
-The return-to-target phase is parametric: each particle's start position is snapshotted at phase entry, then `start + (target - start) * easing(t)` each frame. Curves come from `screean`'s `easing` namespace.
+## Tuning a transition
+
+A transition has four phases: `idle → dissolving → particles → reforming`. The
+return leg is **spring physics**, not a keyframed easing curve — particles bind
+to the target field and the spring/drag pair carries them there.
 
 ```ts
-import { easing } from 'screean';
-import { createDissolve } from '@screean/components';
+import { createScreenController } from '@tesyl/screean-components/components';
 
-const dissolve = createDissolve({
-  // ...other opts
-  returnEasing: easing.outCubic,   // default — matches the previous "exponential approach" feel
+const controller = createScreenController({
+  canvas,
+  feel: 'taut',                 // named preset
+  feelOverrides: { drag: 0.9 }, // springK · springC · drag · shimmerAmp ·
+                                // shimmerFreq · repelRadius · repelStrength ·
+                                // pointerAttract · hashCellSize
+  particleCount: 6000,          // TransitionTuning — also particlePhaseMs,
+  disperseKick: 1.2,            // disperseKick, fadeMs
+  reformSpeed: { min: 0.6, max: 1.4 },
 });
 
-// Per-trigger override:
-dissolve.trigger(button, { easing: easing.outBack });   // punchy overshoot
+// Per-call overrides of TransitionTuning:
+await controller.dissolve(el, { particlePhaseMs: 900 });
+await controller.swap(from, into, { fadeMs: 120 });
 ```
 
-Available curves: `linear`, in/out/inOut variants of `quad` `cubic` `quart` `quint` `sine` `expo` `circ` `back`, plus `smoothstep`, `smootherstep`, `inBounce` `outBounce` `inOutBounce`, `inElastic` `outElastic` `inOutElastic`. Overshoot families (`back`, `elastic`, `bounce`) intentionally exit `[0, 1]` mid-curve — the final snap-to-target at phase end covers any residual offset. Pass any `(t: number) => number` for custom curves.
+`easing` still ships from `@tesyl/screean` and drives the choreography effects
+in `src/components/choreography/` (`linear`, in/out/inOut variants of `quad`
+`cubic` `quart` `quint` `sine` `expo` `circ` `back`, plus `smoothstep`,
+`smootherstep`, and the `bounce` / `elastic` families). Any `(t: number) =>
+number` works.
+
+> The earlier `createDissolve({ returnEasing })` API is removed. Use
+> `createScreenController` — see rule 2 in `CLAUDE.md`.
 
 ## Cross-platform deployment
 
